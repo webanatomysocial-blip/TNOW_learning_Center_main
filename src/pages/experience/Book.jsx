@@ -26,7 +26,7 @@ function detectScheduler(url) {
     const u = new URL(url);
     const host = u.hostname.replace(/^www\./, "");
     const segments = u.pathname.split("/").filter(Boolean);
-    if (segments.length < 2) return null;
+    if (segments.length < 1) return null;
     if (host === "calendly.com") return "calendly";
     if (host === "tidycal.com") return "tidycal";
     return null;
@@ -115,7 +115,7 @@ export function BookPage() {
           {/* Left Column: Calendly scheduler (7 cols) */}
           <div className="lg:col-span-7">
             <div
-              className="border border-[#E3EBFF] bg-gradient-to-b from-white to-[#F7FAFF] shadow-[0_12px_40px_rgba(32,76,237,0.05)] overflow-hidden"
+              className="border border-[#E3EBFF] bg-linear-to-b from-white to-[#F7FAFF] shadow-[0_12px_40px_rgba(32,76,237,0.05)] overflow-hidden"
               style={{ borderRadius: 20 }}
             >
               <div className="flex items-center gap-2.5 border-b border-[#E3EBFF] px-5 py-3.5">
@@ -183,7 +183,7 @@ export function BookPage() {
           {/* Right Column: What to expect + Focus Notes + Actions (5 cols) */}
           <div className="lg:col-span-5 flex flex-col gap-4">
             <div
-              className="border border-[#E3EBFF] bg-gradient-to-b from-[#FCFDFF] to-[#F7FAFF] p-5 shadow-[0_12px_40px_rgba(32,76,237,0.05)]"
+              className="border border-[#E3EBFF] bg-linear-to-b from-[#FCFDFF] to-[#F7FAFF] p-5 shadow-[0_12px_40px_rgba(32,76,237,0.05)]"
               style={{ borderRadius: 20 }}
             >
               <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-primary">
@@ -209,7 +209,7 @@ export function BookPage() {
             </div>
 
             <div
-              className="border border-[#E3EBFF] bg-gradient-to-b from-[#FCFDFF] to-[#F7FAFF] p-5 shadow-[0_12px_40px_rgba(32,76,237,0.05)]"
+              className="border border-[#E3EBFF] bg-linear-to-b from-[#FCFDFF] to-[#F7FAFF] p-5 shadow-[0_12px_40px_rgba(32,76,237,0.05)]"
               style={{ borderRadius: 20 }}
             >
               <label className="font-display text-sm font-semibold">
@@ -220,7 +220,7 @@ export function BookPage() {
                 onChange={(e) => setNotes(e.target.value)}
                 rows={4}
                 placeholder="e.g. Migration from SAP GRC, S/4 rollout, license optimization..."
-                className="mt-3.5 w-full rounded-xl border border-[#E3EBFF] bg-white px-3.5 py-2.5 text-xs outline-none placeholder:text-caption focus:border-[#204CED] focus:ring-2 focus:ring-[#204CED]/15 transition-all duration-200 resize-none"
+                className="mt-3.5 w-full rounded-xl border border-[#E3EBFF] bg-white px-3.5 py-2.5 text-xs outline-none placeholder:text-caption focus:border-primary focus:ring-2 focus:ring-primary/15 transition-all duration-200 resize-none"
                 style={{ borderRadius: 12 }}
               />
             </div>

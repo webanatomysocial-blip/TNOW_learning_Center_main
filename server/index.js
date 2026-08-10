@@ -55,8 +55,37 @@ app.use(emailInvitesRoutes);
 // of needing a second static host + CORS between them. Local dev doesn't build to
 // dist/, so this is a no-op there (Vite's own dev server handles the frontend).
 const distDir = path.join(__dirname, "..", "dist");
+
+// ===== TEMPORARY RUNTIME DEBUG — remove once /assets/* 404 is root-caused =====
+console.log("========== STARTUP DEBUG ==========");
+console.log("__dirname:", __dirname);
+console.log("process.cwd():", process.cwd());
+console.log("distDir:", distDir);
+console.log("dist exists:", fs.existsSync(distDir));
+console.log("assets exists:", fs.existsSync(path.join(distDir, "assets")));
+console.log("index exists:", fs.existsSync(path.join(distDir, "index.html")));
+console.log("==================================");
+
+app.use((req, res, next) => {
+  console.log("[REQUEST]", req.method, req.url);
+  next();
+});
+// ===== END TEMPORARY STARTUP DEBUG (request logger stays active below) =====
+
 if (fs.existsSync(distDir)) {
-  app.use(express.static(distDir));
+  // TEMPORARY: fallthrough:false makes express.static hand any file it can't find
+  // to the [STATIC ERROR] handler below (a real Error) instead of silently calling
+  // next() and letting the SPA catch-all mask it with a 200 index.html response —
+  // that silent fallthrough is what normally hides a wrong/missing file from you.
+  app.use(express.static(distDir, { fallthrough: false }));
+
+  // ===== TEMPORARY — surfaces exactly what express.static failed to find =====
+  app.use((err, req, res, next) => {
+    console.error("[STATIC ERROR]", err);
+    next(err);
+  });
+  // ===== END TEMPORARY =====
+
   app.get(/^(?!\/api).*/, (req, res) => {
     res.sendFile(path.join(distDir, "index.html"));
   });
@@ -121,7 +150,7 @@ async function ensureDatabaseReady() {
     await ensureDatabaseReady();
 
     const server = app.listen(PORT, () => {
-      console.log(`ToggleNow CMS API listening on http://localhost:${PORT}`);
+      console.log(`ToggleNow Experience Center API listening on http://localhost:${PORT}`);
     });
 
     // EADDRINUSE/EACCES are async failures on the underlying socket, not thrown

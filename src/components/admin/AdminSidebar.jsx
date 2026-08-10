@@ -16,7 +16,7 @@ export function AdminSidebar({ isCollapsed, onToggle, isMobileOpen, onMobileClos
     <aside className={`admin-sidebar${isMobileOpen ? " mobile-open" : ""}`}>
       <div className="sidebar-header">
         <Link to="/admin" className="sidebar-brand">
-          {isCollapsed ? "TN" : "ToggleNow CMS"}
+          {isCollapsed ? "TN" : "ToggleNow Experience Center"}
         </Link>
       </div>
 

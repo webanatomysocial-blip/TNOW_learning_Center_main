@@ -179,7 +179,7 @@ export function ProductSelection() {
   });
 
   return (
-    <main className="min-h-dvh bg-[#FFFFFF] text-foreground relative overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(32,76,237,0.06),_transparent_45%)]">
+    <main className="min-h-dvh bg-[#FFFFFF] text-foreground relative overflow-hidden bg-[radial-gradient(circle_at_top,rgba(32,76,237,0.06),transparent_45%)]">
       <header className="border-b border-border bg-background">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <Link to="/experience" className="flex items-center">
@@ -207,7 +207,7 @@ export function ProductSelection() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search products"
-              className="w-full rounded-2xl border border-border bg-background py-3 pl-11 pr-4 text-[15px] outline-none placeholder:text-caption focus:border-primary focus:ring-2 focus:ring-primary/15"
+              className="w-full rounded-2xl border border-border bg-background py-3 pl-11 pr-4 text-[15px] outline-none placeholder:text-caption focus:ring-2 focus:ring-primary/15"
               style={{ borderRadius: 16 }}
             />
           </div>
@@ -306,7 +306,7 @@ export function ProductSelection() {
             </div>
 
             {/* Tab Contents */}
-            <div className="mt-5 min-h-[190px] py-1 text-sm text-foreground">
+            <div className="mt-5 min-h-47.5 py-1 text-sm text-foreground">
               {teaserTab === "overview" && (
                 <div className="space-y-4">
                   <p className="leading-relaxed text-muted-foreground">{teaserData.description}</p>
@@ -540,7 +540,7 @@ function ProductCard({ product, onClick }) {
 
   const body = (
     <article
-      className={`group relative flex h-[260px] flex-col rounded-[20px] border ${theme.border} ${theme.bg} p-6 overflow-hidden transition-all duration-[180ms] ease-out hover:shadow-[0_12px_30px_rgba(32,76,237,0.06)] hover:border-primary/40 hover:-translate-y-[3px] hover:scale-[1.01] cursor-pointer select-none`}
+      className={`group relative flex h-65 flex-col rounded-xl border ${theme.border} ${theme.bg} p-6 overflow-hidden transition-all duration-180 ease-out hover:shadow-[0_12px_30px_rgba(32,76,237,0.06)] hover:border-primary/40 hover:-translate-y-0.75 hover:scale-[1.01] cursor-pointer select-none`}
     >
       {/* Decorative Accent Graphic */}
       <div className="absolute inset-0 opacity-40 group-hover:opacity-60 transition-opacity pointer-events-none">
@@ -549,9 +549,9 @@ function ProductCard({ product, onClick }) {
 
       {/* Top Badge */}
       <div className="z-10 self-start">
-        <div className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[10px] font-normal text-[#111111] shadow-sm border border-black/[0.04]">
+        <div className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[10px] font-normal text-[#111111] shadow-sm border border-black/4">
           <span className={`size-1.5 rounded-full ${theme.dotColor}`} />
-          {theme.badgeText}
+          {available ? "Available" : "Coming Soon"}
         </div>
       </div>
 
