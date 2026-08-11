@@ -1,275 +1,258 @@
 import { useNavigate } from "react-router-dom";
 import { useState } from "react";
-import { ShieldCheck, LockSimple, Buildings, SealCheck } from "@phosphor-icons/react";
+import { Buildings, EnvelopeSimple, User, Phone, CaretRight, Fingerprint, MapPin, IdentificationCard, SuitcaseSimple, FileText } from "@phosphor-icons/react";
 import { useExperience } from "@/lib/experience-store";
 import { useDocumentHead } from "@/lib/use-document-head";
 
 export function LoginPage() {
   useDocumentHead({
     meta: [
-      { title: "Sign in — ToggleNow Experience Center" },
+      { title: "Start Your Free Trial — digitalscan.ai" },
       {
         name: "description",
-        content:
-          "Sign in to your personalized ToggleNow Experience Center — a private, guided SAP Security & Governance briefing for you.",
+        content: "Sign up for digitalscan.ai free trial",
       },
     ],
   });
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
-  const [isNameModified, setIsNameModified] = useState(false);
-  const [otp, setOtp] = useState("");
-  const [stage, setStage] = useState("email");
+  const [company, setCompany] = useState("");
+  const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const setUser = useExperience((s) => s.setUser);
   const reset = useExperience((s) => s.reset);
   const navigate = useNavigate();
 
-  function handleEmailChange(val) {
-    setEmail(val);
-    if (!isNameModified && val) {
-      const candidate = val
-        .split("@")[0]
-        .replace(/[0-9]/g, "") // remove numeric digits (e.g. 723ms -> ms)
-        .replace(/grc|basis|sap|it|admin|dev/gi, "") // strip common robotic/system labels
-        .replace(/[._]/g, " ") // replace dots and underscores with spaces
-        .trim();
-
-      const cleanCandidate =
-        candidate.length > 1 ? candidate : val.split("@")[0].replace(/[._]/g, " ");
-      setName(capitalize(cleanCandidate));
-    }
-  }
-
-  function sendOtp(e) {
+  function handleSubmit(e) {
     e.preventDefault();
     if (!email || !name) return;
     setLoading(true);
     setTimeout(() => {
-      setStage("otp");
-      setLoading(false);
-    }, 400);
-  }
-
-  function verifyOtp(e) {
-    e.preventDefault();
-    setLoading(true);
-    setTimeout(() => {
-      reset(); // Reset all cached state, achievements, and steps from previous sessions
+      reset(); 
       setUser({ email, name: name.trim() || "Guest User" });
       navigate("/experience");
-    }, 400);
+    }, 800);
   }
 
   return (
-    <main className="min-h-dvh bg-background text-foreground">
-      <div className="grid min-h-dvh lg:grid-cols-5">
-        {/* Left — Showcase */}
+    <main className="min-h-dvh flex bg-[#f8fafc] font-sans antialiased">
+      <div className="grid min-h-dvh w-full lg:grid-cols-2">
+        {/* Left — Showcase Panel matching the photo reference */}
         <aside
-          className="relative hidden lg:col-span-3 lg:flex flex-col items-center justify-center p-14 overflow-hidden select-none"
+          className="relative hidden lg:flex flex-col items-center justify-between px-8 py-10 overflow-hidden select-none"
           style={{
-            backgroundColor: "#2054E3",
-            background:
-              "radial-gradient(circle at bottom right, rgba(244, 114, 182, 0.45) 0%, rgba(192, 132, 252, 0.45) 25%, rgba(37, 99, 235, 0) 70%), radial-gradient(circle at top left, rgba(56, 189, 248, 0.5) 0%, rgba(37, 99, 235, 0) 60%), #2054E3",
+            background: "linear-gradient(180deg, #020919 0%, #051842 30%, #0c3690 65%, #0570db 85%, #00e5bf 100%)"
           }}
         >
-          {/* White Grid Lines */}
-          <div
-            className="absolute inset-0 pointer-events-none opacity-40 mix-blend-overlay"
-            style={{
-              backgroundImage: `linear-gradient(to right, rgba(255, 255, 255, 0.25) 1px, transparent 1px),
-                               linear-gradient(to bottom, rgba(255, 255, 255, 0.25) 1px, transparent 1px)`,
-              backgroundSize: "90px 90px",
-              backgroundPosition: "center center",
-            }}
-          />
-
-          {/* Testimonial Card */}
-          <div
-            className="relative w-full max-w-lg rounded-3xl border border-white/15 bg-white/10 p-10 shadow-2xl backdrop-blur-md flex flex-col justify-between"
-            style={{ borderRadius: 24 }}
-          >
-            {/* Litmus Logo */}
+          {/* Background Radial Glow */}
+          <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-150 h-150 bg-[#204ced] rounded-full blur-[140px] opacity-35 mix-blend-screen pointer-events-none" />
+          
+          {/* Top Logo & Tagline */}
+          <div className="w-full flex flex-col items-center pt-2 z-10">
             <div className="flex items-center gap-3">
-              <svg
-                className="size-8 text-white shrink-0"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <g fill="currentColor">
-                  {Array.from({ length: 12 }).map((_, i) => {
-                    const angle = (i * 30 * Math.PI) / 180;
-                    const x1 = 12 + 4 * Math.cos(angle);
-                    const y1 = 12 + 4 * Math.sin(angle);
-                    const x2 = 12 + 9.5 * Math.cos(angle);
-                    const y2 = 12 + 9.5 * Math.sin(angle);
-
-                    const nextAngle = ((i + 0.65) * 30 * Math.PI) / 180;
-                    const x3 = 12 + 9.5 * Math.cos(nextAngle);
-                    const y3 = 12 + 9.5 * Math.sin(nextAngle);
-                    const x4 = 12 + 4 * Math.cos(nextAngle);
-                    const y4 = 12 + 4 * Math.sin(nextAngle);
-
-                    return (
-                      <path
-                        key={i}
-                        d={`M ${x1} ${y1} L ${x2} ${y2} A 9.5 9.5 0 0 1 ${x3} ${y3} L ${x4} ${y4} A 4 4 0 0 0 ${x1} ${y1} Z`}
-                      />
-                    );
-                  })}
-                </g>
-              </svg>
-              <span className="font-sans text-xl font-semibold tracking-tight text-white">
-                litmus
-              </span>
-            </div>
-
-            {/* Quote */}
-            <blockquote className="mt-14 text-lg md:text-[21px] text-white/90 leading-relaxed font-sans font-light tracking-wide">
-              “ToggleNow allows us to make informed and cohesive decisions around{" "}
-              <strong className="font-semibold text-white">securing our SAP systems</strong> and
-              making our compliance seamless.”
-            </blockquote>
-
-            {/* Author */}
-            <div className="flex items-center gap-3.5 mt-14">
-              <img
-                src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=120&h=120&q=80"
-                alt="Taylor Davis"
-                className="size-11 rounded-full object-cover border border-white/20 shadow-md"
-                referrerPolicy="no-referrer"
-              />
-              <div>
-                <cite className="not-italic text-sm font-semibold text-white block">
-                  Taylor Davis
-                </cite>
-                <span className="font-mono text-[10px] text-white/75 uppercase tracking-wider block mt-0.5">
-                  Senior Director of Customer Experience
+              <div className="relative p-2 rounded-lg border border-[#00f0c5]/40 bg-[#00f0c5]/10">
+                <Fingerprint className="text-[#00f0c5] size-9" weight="bold" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-white text-2xl font-bold tracking-tight leading-none">
+                  digitalscan<span className="text-[#00f0c5]">.ai</span>
+                </span>
+                <span className="text-[#7c9ce0] text-[8.5px] uppercase tracking-[0.28em] font-semibold mt-1">
+                  SCAN. VERIFY. TRUST.
                 </span>
               </div>
             </div>
           </div>
+
+          {/* Main Hero Header & Bullets */}
+          <div className="text-center z-10 w-full max-w-lg my-auto py-2">
+            <h1 className="text-white text-[38px] xl:text-[44px] leading-[1.18] font-semibold mb-5 tracking-tight">
+              Get <span className="text-[#00f0c5] font-bold">₹1,000</span> Free<br />
+              Verification Credits
+            </h1>
+
+            <div className="flex items-center justify-center gap-3 text-white/90 text-[14px] font-normal">
+              <span>11 Verification APIs</span>
+              <span className="size-1 rounded-full bg-[#00f0c5]" />
+              <span>3-Tier Caching</span>
+              <span className="size-1 rounded-full bg-[#00f0c5]" />
+              <span>Multi-Tenant Billing</span>
+            </div>
+          </div>
+
+          {/* Curved Cards Section & Bottom Glowing Dome */}
+          <div className="relative w-full max-w-2xl h-64 mt-4 flex items-end justify-center z-10 overflow-visible">
+            {/* The Curved Arc Cards Layout */}
+            <div className="relative w-full h-full flex items-end justify-center pb-6">
+              
+              {/* Card 1: MCA */}
+              <div className="absolute left-[2%] bottom-1 -rotate-12 transition-transform hover:scale-105 z-10">
+                <div className="w-32 h-36 rounded-2xl border border-[#00f0c5]/30 bg-[#072459]/70 backdrop-blur-md p-3.5 flex flex-col justify-between shadow-[0_10px_30px_rgba(0,0,0,0.4)]">
+                  <FileText className="size-7 text-[#00f0c5]" weight="light" />
+                  <span className="text-white text-[11px] font-medium leading-tight">MCA<br />Verification</span>
+                </div>
+              </div>
+
+              {/* Card 2: Employment */}
+              <div className="absolute left-[23%] bottom-6 -rotate-6 transition-transform hover:scale-105 z-15">
+                <div className="w-34 h-38 rounded-2xl border border-[#00f0c5]/40 bg-[#082b68]/80 backdrop-blur-md p-3.5 flex flex-col justify-between shadow-[0_12px_35px_rgba(0,0,0,0.4)]">
+                  <SuitcaseSimple className="size-8 text-[#00f0c5]" weight="light" />
+                  <span className="text-white text-[11px] font-medium leading-tight">Employment<br />Verification</span>
+                </div>
+              </div>
+
+              {/* Center Main Highlight Box */}
+              <div className="relative z-30 mb-2 transition-transform hover:scale-105">
+                <div className="w-64 h-40 rounded-2xl border-2 border-[#00f0c5] bg-gradient-to-b from-[#00f0c5]/25 via-[#00f0c5]/5 to-transparent backdrop-blur-lg shadow-[0_0_45px_rgba(0,240,197,0.5)] p-4 flex flex-col items-center justify-center text-center">
+                  <div className="w-full h-full border border-[#00f0c5]/30 rounded-xl bg-white/5 flex items-center justify-center">
+                    <span className="text-[#00f0c5] text-xs font-semibold tracking-wide">Live Scan Pipeline</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 4: Address */}
+              <div className="absolute right-[23%] bottom-6 rotate-6 transition-transform hover:scale-105 z-15">
+                <div className="w-34 h-38 rounded-2xl border border-[#00f0c5]/40 bg-[#082b68]/80 backdrop-blur-md p-3.5 flex flex-col justify-between shadow-[0_12px_35px_rgba(0,0,0,0.4)]">
+                  <MapPin className="size-8 text-[#00f0c5]" weight="light" />
+                  <span className="text-white text-[11px] font-medium leading-tight">Address<br />Verification</span>
+                </div>
+              </div>
+
+              {/* Card 5: PAN */}
+              <div className="absolute right-[2%] bottom-1 rotate-12 transition-transform hover:scale-105 z-10">
+                <div className="w-32 h-36 rounded-2xl border border-[#00f0c5]/30 bg-[#072459]/70 backdrop-blur-md p-3.5 flex flex-col justify-between shadow-[0_10px_30px_rgba(0,0,0,0.4)]">
+                  <IdentificationCard className="size-7 text-[#00f0c5]" weight="light" />
+                  <span className="text-white text-[11px] font-medium leading-tight">PAN<br />Verification</span>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Bottom Cyan Glowing Arch Curve */}
+            <div className="absolute -bottom-24 left-1/2 -translate-x-1/2 w-[140%] h-48 rounded-[100%] bg-gradient-to-t from-[#00e5bf] via-[#00e5bf]/60 to-transparent blur-md opacity-80 pointer-events-none" />
+          </div>
+
+          {/* Bottom Tagline */}
+          <div className="text-white font-medium text-[13px] z-20 pb-1 mt-4 tracking-wide">
+            A fullscan AI-powered product
+          </div>
         </aside>
 
-        {/* Right — Login */}
-        <section className="flex flex-col justify-between px-6 py-10 lg:col-span-2 lg:px-14">
-          <div className="mx-auto flex h-full w-full max-w-sm flex-col justify-between gap-12">
-            <div className="flex items-center">
-              <img src="/logo.png" alt="ToggleNow" className="h-8 w-auto object-contain" />
-            </div>
-
-            <div className="w-full">
-              <p className="mb-3 text-xs font-medium uppercase tracking-widest text-caption">
-                Experience Center
-              </p>
-              <h1 className="font-display text-2xl sm:text-3xl font-semibold tracking-tight whitespace-nowrap">
-                Welcome to ToggleNow
-              </h1>
-              <p className="mt-3 text-[15px] leading-relaxed text-muted-foreground">
-                Explore enterprise SAP products for you.
-              </p>
-
-              <div className="mt-8 rounded-2xl border border-border bg-background p-6 shadow-soft">
-                {stage === "email" ? (
-                  <form onSubmit={sendOtp} className="space-y-4">
-                    <div className="space-y-1.5">
-                      <label className="block text-sm font-medium text-foreground">Your Name</label>
-                      <input
-                        type="text"
-                        required
-                        autoFocus
-                        value={name}
-                        onChange={(e) => {
-                          setName(e.target.value);
-                          setIsNameModified(true);
-                        }}
-                        placeholder="e.g. Sarah"
-                        className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-[15px] outline-none transition placeholder:text-caption focus:border-primary focus:ring-2 focus:ring-primary/15"
-                        style={{ borderRadius: 16 }}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="block text-sm font-medium text-foreground">
-                        Work email
-                      </label>
-                      <input
-                        type="email"
-                        required
-                        value={email}
-                        onChange={(e) => handleEmailChange(e.target.value)}
-                        placeholder="you@company.com"
-                        className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-[15px] outline-none transition placeholder:text-caption focus:border-primary focus:ring-2 focus:ring-primary/15"
-                        style={{ borderRadius: 16 }}
-                      />
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={loading || !email || !name}
-                      className="btn-primary w-full disabled:opacity-60"
-                    >
-                      {loading ? "Sending code…" : "Continue"}
-                    </button>
-                  </form>
-                ) : (
-                  <form onSubmit={verifyOtp} className="space-y-4">
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <label className="block text-sm font-medium text-foreground">
-                          One-time code
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => setStage("email")}
-                          className="text-xs text-caption hover:text-foreground"
-                        >
-                          Change email
-                        </button>
-                      </div>
-                      <input
-                        inputMode="numeric"
-                        autoFocus
-                        maxLength={6}
-                        value={otp}
-                        onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                        placeholder="6-digit code"
-                        className="w-full rounded-2xl border border-border bg-background px-4 py-3 text-center text-lg tracking-[0.5em] outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
-                        style={{ borderRadius: 16 }}
-                      />
-                    </div>
-                    <p className="text-xs text-caption">
-                      Sent to <span className="text-foreground">{email}</span>. Use any 6 digits for
-                      the demo.
-                    </p>
-                    <button
-                      type="submit"
-                      disabled={loading || otp.length < 4}
-                      className="btn-primary w-full disabled:opacity-60"
-                    >
-                      {loading ? "Verifying…" : "Verify & enter"}
-                    </button>
-                  </form>
-                )}
-
-                <ul className="mt-6 grid grid-cols-2 gap-3 text-xs text-caption">
-                  {[
-                    { icon: SealCheck, label: "SAP Certified Partner" },
-                    { icon: LockSimple, label: "Secure session" },
-                    { icon: ShieldCheck, label: "Private experience" },
-                    { icon: Buildings, label: "Prepared for your company" },
-                  ].map((t) => (
-                    <li key={t.label} className="flex items-center gap-2">
-                      <t.icon className="size-3.5 text-primary" weight="bold" />
-                      {t.label}
-                    </li>
-                  ))}
-                </ul>
+        {/* Right — Login / Sign-up Form Section */}
+        <section className="flex flex-col justify-center items-center px-6 py-10 lg:px-12 bg-[#f4f7fc]">
+          <div className="w-full max-w-115 bg-white rounded-[28px] p-8 md:p-10 shadow-[0_16px_50px_rgba(0,0,0,0.06)] border border-slate-100">
+            {/* Header Icon */}
+            <div className="flex flex-col items-center mb-7 text-center">
+              <div className="w-14 h-14 bg-linear-to-b from-[#204ced]/10 to-[#00f0c5]/10 rounded-2xl flex items-center justify-center mb-4 border border-[#204ced]/15 shadow-xs">
+                <User className="size-6 text-[#204ced]" weight="bold" />
               </div>
+              <h2 className="text-[26px] font-bold text-black tracking-tight mb-1">Start Your Free Trial</h2>
+              <p className="text-[14px] text-slate-500 font-normal">Use your work email to get started instantly</p>
             </div>
 
-            <p className="text-xs text-caption">
-              © {new Date().getFullYear()} ToggleNow · SAP Security & Governance
-            </p>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Company Name */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">Company Name</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                    <Buildings className="size-4.5 text-slate-400" />
+                  </div>
+                  <input 
+                    type="text" 
+                    value={company}
+                    onChange={(e) => setCompany(e.target.value)}
+                    placeholder="Acme Corp" 
+                    className="w-full pl-10 pr-4 py-2.5 text-[14px] rounded-xl border border-slate-200 bg-slate-50/50 focus:ring-3 focus:ring-[#204ced]/20 outline-none transition-all placeholder:text-slate-400 font-medium" 
+                  />
+                </div>
+              </div>
+              
+              {/* Work Email */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">Work Email</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                    <EnvelopeSimple className="size-4.5 text-slate-400" />
+                  </div>
+                  <input 
+                    type="email" 
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@yourcompany.com" 
+                    className="w-full pl-10 pr-4 py-2.5 text-[14px] rounded-xl border border-slate-200 bg-slate-50/50 focus:ring-3 focus:ring-[#204ced]/20 outline-none transition-all placeholder:text-slate-400 font-medium" 
+                  />
+                </div>
+                <p className="text-[11px] text-slate-400">Personal emails (Gmail, Yahoo, etc.) are not accepted</p>
+              </div>
+
+              {/* Your Name */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">Your Name</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                    <User className="size-4.5 text-slate-400" />
+                  </div>
+                  <input 
+                    type="text" 
+                    required
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Jane Smith" 
+                    className="w-full pl-10 pr-4 py-2.5 text-[14px] rounded-xl border border-slate-200 bg-slate-50/50 focus:ring-3 focus:ring-[#204ced]/20 outline-none transition-all placeholder:text-slate-400 font-medium" 
+                  />
+                </div>
+              </div>
+
+              {/* Phone Number */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider">Phone Number</label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
+                    <Phone className="size-4.5 text-slate-400" />
+                  </div>
+                  <input 
+                    type="tel" 
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="9876543210" 
+                    className="w-full pl-10 pr-4 py-2.5 text-[14px] rounded-xl border border-slate-200 bg-slate-50/50 focus:ring-3 focus:ring-[#204ced]/20 outline-none transition-all placeholder:text-slate-400 font-medium" 
+                  />
+                </div>
+              </div>
+
+              {/* Consent Checkbox */}
+              <div className="flex items-start gap-2.5 pt-2">
+                <input 
+                  type="checkbox" 
+                  required
+                  id="consent-checkbox"
+                  className="mt-0.5 w-4 h-4 rounded border-slate-300 text-[#204ced] focus:ring-[#204ced] cursor-pointer" 
+                />
+                <label htmlFor="consent-checkbox" className="text-[11px] text-slate-500 leading-normal cursor-pointer select-none">
+                  I confirm that I have obtained <strong className="font-semibold text-slate-800">written consent</strong> from all candidates whose background verification will be conducted through this platform, in compliance with applicable data protection laws. I agree to the <a href="#" className="text-[#204ced] hover:underline font-medium">Terms of Service</a> and <a href="#" className="text-[#204ced] hover:underline font-medium">Privacy Policy</a>.
+                </label>
+              </div>
+
+              {/* Submit Button with #204ced -> #00f0c5 Gradient */}
+              <button 
+                type="submit" 
+                disabled={loading}
+                className="w-full py-3.5 mt-4 rounded-xl text-white font-bold text-[15px] flex items-center justify-center gap-2 shadow-lg shadow-[#204ced]/25 hover:shadow-xl hover:shadow-[#204ced]/35 hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer disabled:opacity-70" 
+                style={{ 
+                  background: 'linear-gradient(90deg, #204ced 0%, #00f0c5 100%)' 
+                }}
+              >
+                {loading ? "Creating Account..." : "Create Free Account"} 
+                {!loading && <CaretRight weight="bold" className="size-4" />}
+              </button>
+
+              {/* Sign in prompt */}
+              <p className="text-center text-[13px] text-slate-500 pt-3 font-normal">
+                Already have an account? <a href="#" className="text-[#204ced] font-bold hover:underline ml-1">Sign in</a>
+              </p>
+            </form>
           </div>
         </section>
       </div>
@@ -277,6 +260,20 @@ export function LoginPage() {
   );
 }
 
-function capitalize(s) {
-  return s.replace(/\b\w/g, (c) => c.toUpperCase());
+function CardMockup({ icon: Icon, label, rotateY, opacity, scale }) {
+  return (
+    <div 
+      className="flex flex-col items-center justify-center p-3 w-32 h-28 rounded-xl border border-white/20 bg-white/5 backdrop-blur-md shadow-xl transition-transform duration-300 hover:scale-105"
+      style={{ 
+        transform: `rotateY(${rotateY}) scale(${scale})`,
+        opacity: opacity
+      }}
+    >
+      <Icon className="size-7 text-[#00f0c5] mb-2" weight="duotone" />
+      <span className="text-white text-[11px] text-center font-medium leading-tight">
+        {label}
+      </span>
+    </div>
+  );
 }
+

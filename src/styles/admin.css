@@ -1,5 +1,5 @@
-/* Admin CMS design system — modeled on the sap-security-expert-new admin panel
-   (dark collapsible sidebar, slate palette, pill header, stat-card dashboard). */
+/* Admin panel design system — dark collapsible sidebar, slate palette, pill header,
+   stat-card dashboard. */
 
 .admin-root {
   --primary-blue: #1e293b;

@@ -89,8 +89,30 @@ app.use(cookieConsentRoutes);
 // of needing a second static host + CORS between them. Local dev doesn't build to
 // dist/, so this is a no-op there (Vite's own dev server handles the frontend).
 const distDir = path.join(__dirname, "..", "dist");
+
+// ===== TEMPORARY RUNTIME DEBUG — remove once /assets/* 404 is root-caused =====
+console.log("========== STARTUP DEBUG ==========");
+console.log("__dirname:", __dirname);
+console.log("process.cwd():", process.cwd());
+console.log("distDir:", distDir);
+console.log("dist exists:", fs.existsSync(distDir));
+console.log("assets exists:", fs.existsSync(path.join(distDir, "assets")));
+console.log("index exists:", fs.existsSync(path.join(distDir, "index.html")));
+console.log("==================================");
+
+app.use((req, res, next) => {
+  console.log("[REQUEST]", req.method, req.url);
+  next();
+});
+// ===== END TEMPORARY STARTUP DEBUG (request logger stays active below) =====
+
 if (fs.existsSync(distDir)) {
+  // Default fallthrough (true): express.static serves a real file when it finds
+  // one (JS/CSS/images under /assets) and silently calls next() for anything else
+  // — client-side routes like /admin/login aren't real files on disk, so they must
+  // fall through to the SPA catch-all below rather than 404 here.
   app.use(express.static(distDir));
+
   app.get(/^(?!\/api).*/, (req, res) => {
     res.sendFile(path.join(distDir, "index.html"));
   });
@@ -155,7 +177,7 @@ async function ensureDatabaseReady() {
     await ensureDatabaseReady();
 
     const server = app.listen(PORT, () => {
-      console.log(`ToggleNow CMS API listening on http://localhost:${PORT}`);
+      console.log(`ToggleNow Experience Center API listening on http://localhost:${PORT}`);
     });
 
     // EADDRINUSE/EACCES are async failures on the underlying socket, not thrown

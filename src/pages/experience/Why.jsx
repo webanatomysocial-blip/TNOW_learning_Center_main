@@ -125,10 +125,10 @@ export function WhyPage() {
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 xl:gap-6 items-stretch mt-4">
           {/* Left Column: Video Block wrapped in premium card container */}
           <div className="xl:col-span-7">
-            <div className="p-3 lg:p-2.5 rounded-[24px] border border-[#E3EBFF] bg-gradient-to-b from-white to-[#F7FAFF] shadow-[0_12px_30px_rgba(32,76,237,0.04)] h-full flex flex-col justify-center">
+            <div className="p-3 lg:p-2.5 rounded-2xl border border-[#E3EBFF] bg-linear-to-b from-white to-[#F7FAFF] shadow-[0_12px_30px_rgba(32,76,237,0.04)] h-full flex flex-col justify-center">
               {realVideo ? (
                 <div
-                  className="relative w-full h-[320px] lg:h-[290px] xl:h-[300px] rounded-[18px] overflow-hidden border border-slate-800 bg-black"
+                  className="relative w-full h-80 lg:h-72.5 xl:h-75 rounded-[18px] overflow-hidden border border-slate-800 bg-black"
                   onClick={() => {
                     incVideos();
                     addAchievement("firstVideo");
@@ -157,9 +157,9 @@ export function WhyPage() {
                   )}
                 </div>
               ) : (
-              <div className="relative w-full h-[320px] lg:h-[290px] xl:h-[300px] rounded-[18px] overflow-hidden border border-slate-800 bg-[#0B0F19]">
+              <div className="relative w-full h-80 lg:h-72.5 xl:h-75 rounded-[18px] overflow-hidden border border-slate-800 bg-[#0B0F19]">
                 {status === "idle" && (
-                  <div className="absolute inset-0 bg-gradient-to-br from-[#0F172A] to-[#020617] text-white flex flex-col md:flex-row">
+                  <div className="absolute inset-0 bg-linear-to-br from-[#0F172A] to-[#020617] text-white flex flex-col md:flex-row">
                     {/* Left Half: Watch Info */}
                     <div
                       onClick={handlePlay}
@@ -298,17 +298,17 @@ export function WhyPage() {
                     <motion.div
                       key={i}
                       variants={cardVariants}
-                      className="group flex flex-col p-4 lg:p-3 bg-gradient-to-b from-[#FCFDFF] to-[#F7FAFF] border border-[#E3EBFF] hover:border-primary/40 rounded-[16px] h-[155px] lg:h-[135px] xl:h-[140px] transition-all duration-[180ms] ease-out hover:-translate-y-[2px] hover:scale-[1.01] hover:shadow-[0_8px_25px_rgba(32,76,237,0.05)]"
+                      className="group flex flex-col p-4 lg:p-3 bg-linear-to-b from-[#FCFDFF] to-[#F7FAFF] border border-[#E3EBFF] hover:border-primary/40 rounded-lg h-38.75 lg:h-33.75 xl:h-35 transition-all duration-180 ease-out hover:-translate-y-0.5 hover:scale-[1.01] hover:shadow-[0_8px_25px_rgba(32,76,237,0.05)]"
                     >
                       <div className="flex items-center gap-2">
                         <div className="flex size-6.5 items-center justify-center rounded-full bg-primary/15 text-primary shrink-0 border border-primary/20">
                           <Icon className="size-3.5 stroke-[2.25]" />
                         </div>
-                        <h3 className="font-display text-[13px] font-semibold text-slate-800 dark:text-slate-100 tracking-tight leading-tight">
+                        <h3 className="font-display text-[13px] font-semibold text-slate-800 tracking-tight leading-tight">
                           {f.title}
                         </h3>
                       </div>
-                      <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400 leading-snug font-normal line-clamp-2">
+                      <p className="mt-2 text-[11px] text-slate-500 leading-snug font-normal line-clamp-2">
                         {f.desc}
                       </p>
                     </motion.div>

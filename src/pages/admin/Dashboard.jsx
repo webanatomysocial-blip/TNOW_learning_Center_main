@@ -4,7 +4,8 @@ import { Package, Video, Users, Send } from "lucide-react";
 import { useApiGet } from "@/lib/use-api";
 import { useAdminStore } from "@/lib/admin-store";
 import { useDocumentHead } from "@/lib/use-document-head";
-import { StatusBadge, formatDate } from "@/pages/admin/SentEmails";
+import { StatusBadge } from "@/pages/admin/SentEmails";
+import { formatDate } from "@/lib/utils";
 
 // The invites table has more granular statuses (used/expired/revoked) than the
 // three buckets the dashboard tabs show — everything that isn't still
@@ -27,7 +28,7 @@ export function AdminDashboardPage() {
   const { data: capabilities } = useApiGet("/api/capabilities");
   const { data: stories } = useApiGet("/api/stories");
   const { data: inviteData } = useApiGet("/api/admin/email-invites", { token });
-  const invites = inviteData ?? [];
+  const invites = useMemo(() => inviteData ?? [], [inviteData]);
 
   const [activeTab, setActiveTab] = useState("active");
 

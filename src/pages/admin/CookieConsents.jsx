@@ -3,7 +3,7 @@ import { ArrowLeft, Cookie, XCircle } from "lucide-react";
 import { useApiGet } from "@/lib/use-api";
 import { useAdminStore } from "@/lib/admin-store";
 import { useDocumentHead } from "@/lib/use-document-head";
-import { formatDate } from "@/pages/admin/SentEmails";
+import { formatDate } from "@/lib/utils";
 
 export function CookieConsentsPage() {
   useDocumentHead({ meta: [{ title: "Cookie Consents — Admin" }] });

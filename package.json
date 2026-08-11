@@ -14,7 +14,7 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "start": "node server/index.js",
-    "postinstall": "vite build",
+    "postinstall": "echo Skipping build",
     "migrate": "knex migrate:latest --knexfile server/knexfile.js",
     "seed": "knex seed:run --knexfile server/knexfile.js",
     "print-env": "node server/print-env.js"

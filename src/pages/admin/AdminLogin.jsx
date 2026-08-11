@@ -6,7 +6,7 @@ import { useDocumentHead } from "@/lib/use-document-head";
 import "@/styles/admin.css";
 
 export function AdminLoginPage() {
-  useDocumentHead({ meta: [{ title: "Admin Login — ToggleNow CMS" }] });
+  useDocumentHead({ meta: [{ title: "Admin Login — ToggleNow Experience Center" }] });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -31,7 +31,7 @@ export function AdminLoginPage() {
   return (
     <div className="admin-root admin-login-wrapper">
       <div className="admin-login-box">
-        <div className="admin-login-brand">ToggleNow CMS</div>
+        <div className="admin-login-brand">ToggleNow Experience Center</div>
         <h2>Admin Login</h2>
         <form onSubmit={handleSubmit}>
           <div className="form-group">
