@@ -7,7 +7,9 @@
 const API_URL =
   import.meta.env.VITE_API_URL !== undefined
     ? import.meta.env.VITE_API_URL
-    : `http://${window.location.hostname}:4000`;
+    : (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+      ? `http://${window.location.hostname}:4000`
+      : "";
 
 async function parseResponse(res) {
   const text = await res.text();

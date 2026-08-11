@@ -216,6 +216,7 @@ router.get("/api/admin/email-invites", requireAdmin, async (req, res) => {
         "videos_total",
         "product_slug",
         "allowed_product_slugs",
+        "access_requested_at",
       )
       .orderBy("created_at", "desc");
     res.json(
@@ -229,6 +230,22 @@ router.get("/api/admin/email-invites", requireAdmin, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to fetch invites" });
+  }
+});
+
+// Unlocks a device-locked invite so it can be opened from a new device, without
+// regenerating the code/link like resend does — same link, just re-armed.
+router.post("/api/admin/email-invites/:id/grant-access", requireAdmin, async (req, res) => {
+  try {
+    const existing = await db("email_invites").where({ id: req.params.id }).first();
+    if (!existing) return res.status(404).json({ message: "Not found" });
+    await db("email_invites")
+      .where({ id: req.params.id })
+      .update({ device_fingerprint: null, access_requested_at: null, updated_at: new Date() });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to grant access" });
   }
 });
 
@@ -387,6 +404,7 @@ router.post("/api/magic/:code/consume", async (req, res) => {
     if (invite.device_lock && invite.device_fingerprint && invite.device_fingerprint !== deviceId) {
       return res.status(403).json({
         message: "This link was opened on a different device and can no longer be used here.",
+        deviceLocked: true,
       });
     }
 
@@ -433,6 +451,23 @@ router.post("/api/magic/:code/consume", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: "Failed to complete login" });
+  }
+});
+
+// Called from the "this link was opened on a different device" dead end — flags the
+// invite so the admin can grant access from a new device instead of the customer
+// being stuck. Doesn't unlock anything itself, just records the ask.
+router.post("/api/magic/:code/request-access", async (req, res) => {
+  try {
+    const invite = await loadInvite(req.params.code);
+    if (!invite) return res.status(404).json({ message: "This link is invalid." });
+    await db("email_invites")
+      .where({ id: invite.id })
+      .update({ access_requested_at: new Date(), updated_at: new Date() });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to send request" });
   }
 });
 

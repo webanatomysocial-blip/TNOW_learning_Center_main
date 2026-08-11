@@ -1,10 +1,11 @@
-import { Mail, LayoutGrid, Package, ChevronLeft, ChevronRight } from "lucide-react";
+import { Mail, LayoutGrid, Package, Cookie, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 
 const NAV_ITEMS = [
   { to: "/admin", label: "Dashboard", icon: LayoutGrid },
   { to: "/admin/emails", label: "Sent Emails", icon: Mail },
   { to: "/admin/products", label: "Products", icon: Package },
+  { to: "/admin/cookies", label: "Cookie Consents", icon: Cookie },
 ];
 
 export function AdminSidebar({ isCollapsed, onToggle, isMobileOpen, onMobileClose }) {

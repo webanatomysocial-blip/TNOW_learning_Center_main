@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Eye, MoreVertical, RotateCcw, Send, Trash2, X, XCircle } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, Eye, MoreVertical, RotateCcw, Send, ShieldCheck, Trash2, XCircle } from "lucide-react";
 import { useApiGet } from "@/lib/use-api";
 import { apiSend } from "@/lib/api";
 import { useAdminStore } from "@/lib/admin-store";
@@ -119,7 +120,7 @@ export function SentEmailsPage() {
   const [formError, setFormError] = useState("");
   const [successInfo, setSuccessInfo] = useState(null); // { created: [...], invalid: [...] }
   const [copiedId, setCopiedId] = useState(null);
-  const [detailsInvite, setDetailsInvite] = useState(null);
+  const navigate = useNavigate();
   const [menuFor, setMenuFor] = useState(null); // invite.id of the row whose action menu is open
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const menuRef = useRef(null);
@@ -148,7 +149,8 @@ export function SentEmailsPage() {
       return;
     }
     const rect = e.currentTarget.getBoundingClientRect();
-    const MENU_HEIGHT = 4 * 38 + 12; // 4 items + vertical padding, matches .profile-dropdown-menu
+    const itemCount = invite.access_requested_at ? 5 : 4;
+    const MENU_HEIGHT = itemCount * 38 + 12; // items + vertical padding, matches .profile-dropdown-menu
     const spaceBelow = window.innerHeight - rect.bottom;
     const top =
       spaceBelow >= MENU_HEIGHT + 6
@@ -193,6 +195,15 @@ export function SentEmailsPage() {
     navigator.clipboard?.writeText(url);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 1500);
+  }
+
+  async function handleGrantAccess(invite) {
+    try {
+      await apiSend(`/api/admin/email-invites/${invite.id}/grant-access`, "POST", undefined, token);
+      refetch();
+    } catch (err) {
+      window.alert(err.message || "Failed to grant access.");
+    }
   }
 
   async function handleResend(invite) {
@@ -454,6 +465,11 @@ export function SentEmailsPage() {
                     </td>
                     <td>
                       <StatusBadge status={invite.status} />
+                      {invite.access_requested_at && (
+                        <p style={{ marginTop: 4, fontSize: "0.72rem", fontWeight: 600, color: "var(--error-red)" }}>
+                          Access requested
+                        </p>
+                      )}
                     </td>
                     <td>
                       <ProgressCell pct={invite.progress_percent} />
@@ -505,12 +521,23 @@ export function SentEmailsPage() {
               <button
                 className="dropdown-item"
                 onClick={() => {
-                  setDetailsInvite(invite);
+                  navigate(`/admin/emails/${invite.id}`);
                   setMenuFor(null);
                 }}
               >
                 <Eye size={15} /> View Details
               </button>
+              {invite.access_requested_at && (
+                <button
+                  className="dropdown-item"
+                  onClick={() => {
+                    handleGrantAccess(invite);
+                    setMenuFor(null);
+                  }}
+                >
+                  <ShieldCheck size={15} /> Grant Access
+                </button>
+              )}
               <button
                 className="dropdown-item"
                 onClick={() => {
@@ -542,86 +569,113 @@ export function SentEmailsPage() {
           );
         })()}
 
-      {detailsInvite && (
-        <div
-          className="mobile-sidebar-backdrop"
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}
-          onClick={() => setDetailsInvite(null)}
-        >
-          <div
-            className="admin-login-box"
-            style={{ maxWidth: 480, textAlign: "left" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h2 style={{ marginBottom: 0 }}>Invite details</h2>
-              <button
-                className="dropdown-item"
-                style={{ width: "auto", padding: 6 }}
-                onClick={() => setDetailsInvite(null)}
-                aria-label="Close"
-              >
-                <X />
-              </button>
-            </div>
+    </div>
+  );
+}
 
-             <dl style={{ marginTop: 20, display: "grid", rowGap: 14 }}>
-               <DetailRow label="Email invited">{detailsInvite.email}</DetailRow>
-               <DetailRow label="Name they entered">
-                 {detailsInvite.filled_name || "— not opened yet —"}
-               </DetailRow>
-               <DetailRow label="Product">
-                 <span style={{ textTransform: "uppercase", fontWeight: 600, color: "var(--slate-700)" }}>
-                   {detailsInvite.product_slug || "— not started yet —"}
-                 </span>
-               </DetailRow>
-               <DetailRow label="Status">
-                 <StatusBadge status={detailsInvite.status} />
-               </DetailRow>
-               <DetailRow label="Admin Notified (40% Progress)">
-                 {detailsInvite.admin_notified ? "Yes (Email sent)" : "No"}
-               </DetailRow>
-               <DetailRow label="Product tour progress">
-                <ProgressCell pct={detailsInvite.progress_percent} />
-                {detailsInvite.videos_total > 0 && (
+export function InviteDetailsPage() {
+  useDocumentHead({ meta: [{ title: "Invite Details — Admin" }] });
+  const { id } = useParams();
+  const token = useAdminStore((s) => s.token);
+  const { data, isLoading, isError, refetch } = useApiGet("/api/admin/email-invites", { token });
+  const invite = (data ?? []).find((i) => String(i.id) === id);
+
+  async function handleGrantAccess() {
+    try {
+      await apiSend(`/api/admin/email-invites/${invite.id}/grant-access`, "POST", undefined, token);
+      refetch();
+    } catch (err) {
+      window.alert(err.message || "Failed to grant access.");
+    }
+  }
+
+  return (
+    <div className="admin-page-wrapper">
+      <div className="admin-header-actions">
+        <Link to="/admin/emails" className="btn-secondary">
+          <ArrowLeft size={16} /> Back to Sent Emails
+        </Link>
+      </div>
+
+      <div className="admin-card" style={{ maxWidth: 560 }}>
+        {isLoading ? (
+          <div className="admin-state">
+            <div className="admin-spinner" />
+            <span>Loading invite…</span>
+          </div>
+        ) : isError || !invite ? (
+          <div className="admin-state is-error">
+            <div className="admin-state-icon">
+              <XCircle size={20} />
+            </div>
+            <span>Couldn't find that invite.</span>
+          </div>
+        ) : (
+          <>
+            <h1>Invite details</h1>
+            <dl style={{ marginTop: 20, display: "grid", rowGap: 14 }}>
+              <DetailRow label="Email invited">{invite.email}</DetailRow>
+              <DetailRow label="Name they entered">
+                {invite.filled_name || "— not opened yet —"}
+              </DetailRow>
+              <DetailRow label="Product">
+                <span style={{ textTransform: "uppercase", fontWeight: 600, color: "var(--slate-700)" }}>
+                  {invite.product_slug || "— not started yet —"}
+                </span>
+              </DetailRow>
+              <DetailRow label="Status">
+                <StatusBadge status={invite.status} />
+              </DetailRow>
+              {invite.access_requested_at && (
+                <DetailRow label="Access requested">
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ color: "var(--error-red)", fontWeight: 600 }}>
+                      {formatDate(invite.access_requested_at)} — opened from a new device
+                    </span>
+                    <button className="btn-primary" style={{ padding: "6px 12px" }} onClick={handleGrantAccess}>
+                      Grant Access
+                    </button>
+                  </div>
+                </DetailRow>
+              )}
+              <DetailRow label="Admin Notified (40% Progress)">
+                {invite.admin_notified ? "Yes (Email sent)" : "No"}
+              </DetailRow>
+              <DetailRow label="Product tour progress">
+                <ProgressCell pct={invite.progress_percent} />
+                {invite.videos_total > 0 && (
                   <p style={{ marginTop: 6, fontSize: "0.78rem", color: "var(--slate-500)" }}>
-                    {detailsInvite.videos_watched} / {detailsInvite.videos_total} tour videos
+                    {invite.videos_watched} / {invite.videos_total} tour videos
                     watched to completion
                   </p>
                 )}
-                {detailsInvite.progress_steps?.length > 0 && (
+                {invite.progress_steps?.length > 0 && (
                   <p style={{ marginTop: 6, fontSize: "0.78rem", color: "var(--slate-500)" }}>
-                    Completed: {detailsInvite.progress_steps.map((s) => STEP_LABELS[s] || s).join(", ")}
+                    Completed: {invite.progress_steps.map((s) => STEP_LABELS[s] || s).join(", ")}
                   </p>
                 )}
-                {detailsInvite.progress_updated_at && (
+                {invite.progress_updated_at && (
                   <p style={{ marginTop: 2, fontSize: "0.72rem", color: "var(--slate-400)" }}>
-                    Last active {formatDate(detailsInvite.progress_updated_at)}
+                    Last active {formatDate(invite.progress_updated_at)}
                   </p>
                 )}
               </DetailRow>
               <DetailRow label="Times opened">
-                {detailsInvite.use_count}
-                {detailsInvite.single_use ? " (single-use link)" : " (multi-use link)"}
+                {invite.use_count}
+                {invite.single_use ? " (single-use link)" : " (multi-use link)"}
               </DetailRow>
               <DetailRow label="Device lock">
-                {detailsInvite.device_lock
+                {invite.device_lock
                   ? "Restricted to the first device that opened it"
                   : "Any browser can complete it"}
               </DetailRow>
-              <DetailRow label="Sent at">{formatDate(detailsInvite.sent_at)}</DetailRow>
-              <DetailRow label="Expires at">{formatDate(detailsInvite.expires_at)}</DetailRow>
-              <DetailRow label="Last opened at">{formatDate(detailsInvite.used_at)}</DetailRow>
+              <DetailRow label="Sent at">{formatDate(invite.sent_at)}</DetailRow>
+              <DetailRow label="Expires at">{formatDate(invite.expires_at)}</DetailRow>
+              <DetailRow label="Last opened at">{formatDate(invite.used_at)}</DetailRow>
             </dl>
-
-            <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 20 }}>
-              <button className="btn-secondary" onClick={() => setDetailsInvite(null)}>
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </div>
     </div>
   );
 }

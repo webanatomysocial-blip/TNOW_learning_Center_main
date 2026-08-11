@@ -1,5 +1,8 @@
-require("dotenv").config();
 const path = require("node:path");
+// dotenv defaults to loading ".env" from process.cwd(), which on cPanel/Passenger
+// isn't guaranteed to be this file's directory — point it here explicitly, same as
+// server/index.js. Doesn't override already-set process.env vars either way.
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 const productionConnection = process.env.DATABASE_URL
   ? process.env.DATABASE_URL

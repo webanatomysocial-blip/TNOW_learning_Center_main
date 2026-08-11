@@ -10,6 +10,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+*.zip
 .output
 .vinxi
 .tanstack/**
@@ -35,3 +36,4 @@ dist-ssr
 server/node_modules
 server/dev.sqlite3
 server/.env
+server/.env.production

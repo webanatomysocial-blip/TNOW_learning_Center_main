@@ -18,8 +18,10 @@ export function MagicLoginPage() {
   const setInviteId = useExperience((s) => s.setInviteId);
   const reset = useExperience((s) => s.reset);
 
-  const [linkState, setLinkState] = useState("loading"); // loading | valid | invalid
+  const [linkState, setLinkState] = useState("loading"); // loading | valid | invalid | device-locked
   const [linkMessage, setLinkMessage] = useState("");
+  const [accessRequested, setAccessRequested] = useState(false);
+  const [requestingAccess, setRequestingAccess] = useState(false);
 
   const [name, setName] = useState("");
   const [isNameModified, setIsNameModified] = useState(false);
@@ -111,12 +113,28 @@ export function MagicLoginPage() {
     } catch (err) {
       if (err.status === 401 || err.status === 400) {
         setFormError(err.message || "That didn't match. Please try again.");
+      } else if (err.status === 403 && err.body?.deviceLocked) {
+        setLinkMessage(err.message || "This link was opened on a different device and can no longer be used here.");
+        setLinkState("device-locked");
       } else {
         setLinkMessage(err.message || "This link could not be used.");
         setLinkState("invalid");
       }
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleRequestAccess() {
+    setRequestingAccess(true);
+    try {
+      await apiSend(`/api/magic/${code}/request-access`, "POST");
+      setAccessRequested(true);
+    } catch {
+      // best-effort — the message below still tells them what to do
+      setAccessRequested(true);
+    } finally {
+      setRequestingAccess(false);
     }
   }
 
@@ -143,6 +161,38 @@ export function MagicLoginPage() {
             <Link to="/" className="text-sm text-primary hover:underline">
               Back to home
             </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (linkState === "device-locked") {
+    return (
+      <main className="min-h-dvh bg-background text-foreground flex items-center justify-center px-6">
+        <div className="w-full max-w-sm">
+          <div className="flex items-center justify-center mb-8">
+            <img src="/logo.png" alt="ToggleNow" className="h-8 w-auto object-contain" />
+          </div>
+          <div className="rounded-2xl border border-border bg-background p-8 shadow-soft text-center">
+            <h1 className="font-display text-xl font-semibold tracking-tight mb-2">
+              Different device detected
+            </h1>
+            <p className="text-[15px] text-muted-foreground mb-6">{linkMessage}</p>
+            {accessRequested ? (
+              <p className="text-sm text-primary">
+                Request sent — we'll get back to you once access is granted.
+              </p>
+            ) : (
+              <button
+                type="button"
+                onClick={handleRequestAccess}
+                disabled={requestingAccess}
+                className="btn-primary w-full disabled:opacity-60"
+              >
+                {requestingAccess ? "Sending…" : "Request access"}
+              </button>
+            )}
           </div>
         </div>
       </main>

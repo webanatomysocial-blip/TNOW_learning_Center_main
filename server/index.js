@@ -8,13 +8,46 @@ require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
 
 const db = require("./db");
 const authRoutes = require("./routes/auth");
 const contentRoutes = require("./routes/content");
 const emailInvitesRoutes = require("./routes/email-invites");
+const cookieConsentRoutes = require("./routes/cookie-consent");
 
 const app = express();
+
+// Standard security headers (X-Content-Type-Options, no-sniff, HSTS, etc). CSP is
+// left off — this process also serves the built SPA (see distDir below) and a
+// default CSP would break its inline-free but dynamically-hashed Vite assets
+// without deployment-specific tuning.
+app.use(helmet({ contentSecurityPolicy: false }));
+app.set("trust proxy", 1); // needed for correct req.ip behind cPanel/Passenger's proxy
+
+// Brute-force guards on the endpoints that matter: admin password login and the
+// magic-link security-code flow (the code itself is 6 digits — MAX_CODE_ATTEMPTS in
+// email-invites.js caps guesses per-invite, but this caps guesses across invites
+// from one IP too). A generous ceiling on everything else absorbs scripted abuse
+// without affecting normal usage.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Too many attempts. Please try again later." },
+});
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use("/api/admin/login", authLimiter);
+app.use("/api/magic/:code/check-email", authLimiter);
+app.use("/api/magic/:code/consume", authLimiter);
+app.use("/api/", apiLimiter);
 
 // CORS_ORIGIN may be a comma-separated list (e.g. multiple local dev ports).
 // In development, also allow any http://localhost:<port> / http://127.0.0.1:<port>
@@ -49,6 +82,7 @@ app.get("/api/health", (req, res) => res.json({ ok: true }));
 app.use(authRoutes);
 app.use(contentRoutes);
 app.use(emailInvitesRoutes);
+app.use(cookieConsentRoutes);
 
 // On shared hosting (cPanel's Node.js App feature) there's typically one app per
 // domain — so this same process also serves the built React SPA (../dist) instead
