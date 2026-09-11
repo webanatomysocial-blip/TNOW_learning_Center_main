@@ -48,26 +48,25 @@ const PROVIDER_LABEL = { calendly: "Calendly", tidycal: "TidyCal" };
 // a product at a different TidyCal booking type, or edits these questions, this map
 // needs updating the same way — there's no way to keep it in sync automatically.
 const TIDYCAL_QUESTIONS = {
-  sapVersion: { id: 8977033, type: "text" },
-  hasGrc: { id: 8977034, type: "radio", options: ["Yes", "No"] },
-  activeUsers: { id: 8977035, type: "text" },
+  sapVersion: { id: 9657560, type: "text" },
+  hasGrc: { id: 9657561, type: "radio", options: ["Yes", "No"] },
+  activeUsers: { id: 9657562, type: "text" },
   solutions: {
-    id: 8977036,
+    id: 9657563,
     type: "checkbox",
     options: [
-      "Access Governance Solutions (ReviewNow, Orange Envelope, Accelerate etc.,)",
-      "Cybersecurity (ThreatSenseAI SIEM+SOAR, ThreatSenseAI Data Security)",
-      "Control & Audit (GAMS360, AutoSOC)",
-      "Accelerators (Swift, NaviEase, Digybots, FF Trust)",
-      "MCA Audit Trail 11(g) Solution",
-      "Services (S/4 Transformation, GRC Migration, SoD as a service, Role Design etc.,)",
+      "ToggleNow SecOps for SAP GRC",
+      "ToggleNow SecOps for SAP S/4HANA",
+      "FF Trust",
+      "ReviewNow",
+      "ThreatOps for SAP",
     ],
   },
-  companyName: { id: 8977037, type: "text" },
-  designation: { id: 8977038, type: "text" },
-  mobileNo: { id: 8977039, type: "text" },
-  email: { id: 8977040, type: "text" },
-  otherInfo: { id: 8977041, type: "text" },
+  companyName: { id: 9657564, type: "text" },
+  designation: { id: 9657565, type: "text" },
+  mobileNo: { id: 9657566, type: "text" },
+  email: { id: 9657567, type: "text" },
+  otherInfo: { id: 9657568, type: "text" },
 };
 
 // TidyCal only supports prefill via its own embed script (data-name/data-email
@@ -98,7 +97,7 @@ function tidycalPathFromUrl(url) {
 
 // Used for every product unless an admin overrides it with a per-product link in
 // Product Detail → Book Workshop.
-const DEFAULT_SCHEDULER_URL = "https://tidycal.com/togglenow/product-demo";
+const DEFAULT_SCHEDULER_URL = "https://tidycal.com/togglenow/experience-center";
 
 const EXPECTATIONS = [
   { icon: CalendarClock, label: "45 minutes", desc: "Focused working session, not a sales pitch." },
