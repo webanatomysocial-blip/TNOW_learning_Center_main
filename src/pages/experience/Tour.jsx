@@ -4,6 +4,7 @@ import { SectionHeader, StepNav } from "@/components/StepNav";
 import { useExperience } from "@/lib/experience-store";
 import { useApiGet } from "@/lib/use-api";
 import { useDocumentHead } from "@/lib/use-document-head";
+import { API_URL } from "@/lib/api";
 
 const CARD_THEMES = [
   {
@@ -38,10 +39,11 @@ export function TourGrid() {
   const viewed = useExperience((s) => s.capabilitiesViewed);
   const { data, isLoading, isError } = useApiGet(`/api/capabilities?product=${productSlug}`);
   const CAPABILITIES = data ?? [];
+  const total = CAPABILITIES.length;
 
   return (
-    <div className="lg:h-full lg:flex lg:flex-col lg:justify-between">
-      <div>
+    <div className="h-full flex flex-col justify-between overflow-hidden">
+      <div className="flex-1 overflow-y-auto pb-6 scrollbar-none">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-border/80 pb-3 mb-4">
           <div className="max-w-xl">
             <p className="text-[10px] font-medium uppercase tracking-widest text-primary">
@@ -51,8 +53,8 @@ export function TourGrid() {
               Explore {product?.name ?? ""} capability by capability
             </h1>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              Six focused tours, ~2 minutes each. Watch the ones most relevant to your role — we'll
-              mark them complete automatically.
+              {total} focused tour{total === 1 ? "" : "s"}, ~2 minutes each. Watch the ones most
+              relevant to your role — we'll mark them complete automatically.
             </p>
           </div>
 
@@ -65,16 +67,16 @@ export function TourGrid() {
                 </h3>
               </div>
               <span className="text-[10px] font-semibold text-primary shrink-0 ml-4 bg-primary/10 px-2 py-0.5 rounded-full">
-                {viewed.length} / 6 completed
+                {viewed.length} / {total} completed
               </span>
             </div>
             <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted relative">
               <div
                 className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
-                style={{ width: `${(viewed.length / 6) * 100}%` }}
+                style={{ width: `${total ? (viewed.length / total) * 100 : 0}%` }}
               />
             </div>
-            {viewed.length === 6 && (
+            {total > 0 && viewed.length >= total && (
               <div className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
                 <div className="grid size-4 place-items-center rounded-full bg-emerald-500/15 text-emerald-500">
                   <Check className="size-2.5 stroke-[3px]" />
@@ -98,12 +100,19 @@ export function TourGrid() {
               <Link
                 key={c.slug}
                 to={`/experience/${productSlug}/tour/${c.slug}`}
-                className="group flex flex-col overflow-hidden rounded-[16px] border border-[#E3EBFF] bg-gradient-to-b from-[#FCFDFF] to-[#F7FAFF] transition-all duration-[180ms] ease-out hover:-translate-y-[2px] hover:scale-[1.01] hover:shadow-[0_8px_25px_rgba(32,76,237,0.05)] hover:border-primary/40"
+                className="group flex flex-col overflow-hidden glass-card glass-card-hover"
               >
                 {/* Top Visual Thumbnail Area */}
                 <div
-                  className={`relative w-full aspect-[2.4/1] lg:aspect-[2.8/1] overflow-hidden ${theme.gradient}`}
+                  className={`relative w-full aspect-[2.4/1] lg:aspect-[2.8/1] overflow-hidden ${c.image_url ? "" : theme.gradient}`}
                 >
+                  {c.image_url && (
+                    <img
+                      src={c.image_url.startsWith("/") ? `${API_URL}${c.image_url}` : c.image_url}
+                      alt=""
+                      className="absolute inset-0 size-full object-cover"
+                    />
+                  )}
                   {/* Top Right: watch status indicator — only set once the video is actually
                       finished (see Capability.jsx), never a manual shortcut */}
                   <div className="absolute top-2.5 right-2.5 z-20">

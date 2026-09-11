@@ -1,13 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { motion } from "motion/react";
+import { motion, AnimatePresence } from "motion/react";
 import {
   ShieldCheck,
   LockSimple,
   Buildings,
   SealCheck,
   User,
-  EnvelopeSimple,
   Compass,
   ChatCircleDots,
   CalendarCheck,
@@ -25,12 +24,9 @@ import {
 import { apiGet, apiSend } from "@/lib/api";
 import { useApiGet } from "@/lib/use-api";
 import { getDeviceId } from "@/lib/device-id";
+import { getStoredName, setStoredName } from "@/lib/visitor-name";
 import { useExperience } from "@/lib/experience-store";
 import { useDocumentHead } from "@/lib/use-document-head";
-
-function capitalize(s) {
-  return s.replace(/\b\w/g, (c) => c.toUpperCase());
-}
 
 const PRODUCT_ICON_MAP = {
   secops: ShieldCheck,
@@ -77,20 +73,20 @@ export function MagicLoginPage() {
 
   const [linkState, setLinkState] = useState("loading"); // loading | valid | invalid | device-locked
   const [linkMessage, setLinkMessage] = useState("");
+  const [linkReason, setLinkReason] = useState("");
   const [accessRequested, setAccessRequested] = useState(false);
   const [requestingAccess, setRequestingAccess] = useState(false);
 
-  const [name, setName] = useState("");
-  const [isNameModified, setIsNameModified] = useState(false);
-  const [email, setEmail] = useState("");
+  // Once a name has been stored for this browser it's never asked for or
+  // editable again — the form below just skips rendering that field.
+  const storedName = getStoredName(code);
+  const [name, setName] = useState(storedName);
   const [securityCode, setSecurityCode] = useState("");
-  const [stage, setStage] = useState("details"); // details | code
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState("");
-  const [detailsError, setDetailsError] = useState("");
-  const [checkingEmail, setCheckingEmail] = useState(false);
 
   const [activeCard, setActiveCard] = useState(0);
+  const prevOffsetsRef = useRef({});
   useEffect(() => {
     if (!products.length) return;
     const timer = setInterval(() => {
@@ -111,6 +107,7 @@ export function MagicLoginPage() {
       .catch((err) => {
         if (cancelled) return;
         setLinkMessage(err.message || "This link is invalid.");
+        setLinkReason(err.body?.reason || "");
         setLinkState("invalid");
       });
 
@@ -119,61 +116,22 @@ export function MagicLoginPage() {
     };
   }, [code]);
 
-  function handleEmailChange(val) {
-    setEmail(val);
-    setDetailsError("");
-    if (!isNameModified && val) {
-      const candidate = val
-        .split("@")[0]
-        .replace(/[0-9]/g, "")
-        .replace(/grc|basis|sap|it|admin|dev/gi, "")
-        .replace(/[._]/g, " ")
-        .trim();
-      const cleanCandidate =
-        candidate.length > 1 ? candidate : val.split("@")[0].replace(/[._]/g, " ");
-      setName(capitalize(cleanCandidate));
-    }
-  }
-
-  async function handleContinue(e) {
-    e.preventDefault();
-    if (!email || !name) return;
-    setDetailsError("");
-    setCheckingEmail(true);
-    try {
-      const res = await apiSend(`/api/magic/${code}/check-email`, "POST", { email });
-      if (!res.matches) {
-        setDetailsError("This invite wasn't sent to that email address.");
-        return;
-      }
-      setFormError("");
-      setStage("code");
-    } catch (err) {
-      if (err.status === 404 || err.status === 410) {
-        setLinkMessage(err.message || "This link is no longer available.");
-        setLinkState("invalid");
-      } else {
-        setDetailsError(err.message || "Couldn't verify that email. Please try again.");
-      }
-    } finally {
-      setCheckingEmail(false);
-    }
-  }
-
   async function handleVerify(e) {
     e.preventDefault();
+    const trimmedName = name.trim();
+    if (!trimmedName) return;
     setLoading(true);
     setFormError("");
     try {
       const deviceId = getDeviceId();
       const res = await apiSend(`/api/magic/${code}/consume`, "POST", {
         deviceId,
-        email,
-        name: name.trim(),
+        name: trimmedName,
         securityCode: securityCode.trim(),
       });
+      setStoredName(trimmedName, code);
       reset();
-      setUser({ email: res.email, name: name.trim() || "Guest User" });
+      setUser({ email: res.email, name: trimmedName || "Guest User" });
       setInviteId(res.inviteId ?? null);
       navigate("/experience");
     } catch (err) {
@@ -194,7 +152,7 @@ export function MagicLoginPage() {
   async function handleRequestAccess() {
     setRequestingAccess(true);
     try {
-      await apiSend(`/api/magic/${code}/request-access`, "POST");
+      await apiSend(`/api/magic/${code}/request-access`, "POST", { reason: linkReason });
       setAccessRequested(true);
     } catch {
       // best-effort — the message below still tells them what to do
@@ -224,9 +182,31 @@ export function MagicLoginPage() {
               Link unavailable
             </h1>
             <p className="text-[15px] text-muted-foreground mb-6">{linkMessage}</p>
-            <Link to="/" className="text-sm text-primary hover:underline">
-              Back to home
-            </Link>
+            {linkReason === "expired" || linkReason === "revoked" || linkReason === "used" ? (
+              accessRequested ? (
+                <p className="text-sm text-primary">
+                  Request sent — we'll get back to you once access is granted.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={handleRequestAccess}
+                    disabled={requestingAccess}
+                    className="btn-primary w-full disabled:opacity-60"
+                  >
+                    {requestingAccess ? "Sending…" : "Request access"}
+                  </button>
+                  <Link to="/" className="block text-sm text-primary hover:underline">
+                    Back to home
+                  </Link>
+                </div>
+              )
+            ) : (
+              <Link to="/" className="text-sm text-primary hover:underline">
+                Back to home
+              </Link>
+            )}
           </div>
         </div>
       </main>
@@ -266,8 +246,8 @@ export function MagicLoginPage() {
   }
 
   return (
-    <main className="h-dvh overflow-hidden bg-white text-foreground">
-      <div className="grid h-dvh lg:grid-cols-2">
+    <main className="min-h-dvh lg:h-screen lg:overflow-hidden bg-white text-foreground">
+      <div className="grid min-h-dvh lg:h-screen lg:grid-cols-2">
         {/* Left — Showcase with ToggleNow branding & reference visual design */}
         <aside
           className="relative hidden lg:flex flex-col items-center justify-between px-10 pt-12 pb-10 overflow-hidden select-none text-center"
@@ -308,20 +288,31 @@ export function MagicLoginPage() {
             </p>
           </div>
 
-          {/* Center Graphic — Fixed Glass Viewport Frame + Smooth 3D Arched Cards */}
-          <div className="relative flex h-64 w-full max-w-xl items-center justify-center my-auto">
-            <div className="relative flex items-center justify-center w-full h-full">
-              {/* Stationary Center Glass Viewport Frame (Stays fixed in place) */}
-              <div
-                className="absolute z-20 w-66 h-42 rounded-2xl border-2 border-[#05D9C8] bg-[#05D9C8]/10 backdrop-blur-md shadow-[0_0_40px_rgba(5,217,200,0.5),inset_0_0_20px_rgba(5,217,200,0.2)] pointer-events-none"
-                aria-hidden="true"
-              />
+          {/* Product Carousel — cards shift positions smoothly as the active one
+              changes, EXCEPT across the ring wrap (the card leaving the far-left
+              or far-right slot): that card just fades out where it already is
+              instead of sliding all the way across to the opposite side, and
+              its replacement fades in already in place. Detected by comparing
+              each product's offset to what it was last render — a jump bigger
+              than half the ring means it wrapped. */}
+          <div className="relative flex h-72 w-full max-w-2xl items-center justify-center my-auto">
+            {/* Stationary glass viewport frame — stays fixed behind the active card */}
+            <div
+              className="absolute z-20 w-44 h-48 rounded-2xl border-2 border-[#05D9C8] bg-[#05D9C8]/10 backdrop-blur-md shadow-[0_0_40px_rgba(5,217,200,0.5),inset_0_0_20px_rgba(5,217,200,0.2)] pointer-events-none"
+              style={{ transform: "translateY(-4px)" }}
+              aria-hidden="true"
+            />
 
-              {/* Arched Product Cards — Slide into the fixed glass viewport frame */}
+            <AnimatePresence initial={false}>
               {products.map((p, idx) => {
                 const offset = ringOffset(idx, activeCard, products.length);
                 const abs = Math.abs(offset);
                 const isActive = offset === 0;
+                const count = products.length;
+
+                const prevOffset = prevOffsetsRef.current[idx];
+                const isWrap = prevOffset !== undefined && Math.abs(offset - prevOffset) > count / 2;
+                prevOffsetsRef.current[idx] = offset;
 
                 // Arc slot positioning (5 slots)
                 const posX =
@@ -329,75 +320,67 @@ export function MagicLoginPage() {
                     ? 0
                     : offset < 0
                     ? offset === -1
-                      ? -132
-                      : -242
+                      ? -152
+                      : -278
                     : offset === 1
-                    ? 132
-                    : 242;
+                    ? 152
+                    : 278;
 
-                const posY = abs === 0 ? -2 : abs === 1 ? 16 : 48;
+                const posY = abs === 0 ? -4 : abs === 1 ? 18 : 54;
                 const rot = offset === 0 ? 0 : offset < 0 ? (offset === -1 ? -10 : -20) : (offset === 1 ? 10 : 20);
+                const scale = isActive ? 1.05 : 1 - abs * 0.08;
+                const targetOpacity = abs > 2 ? 0 : abs === 2 ? 0.7 : 1;
 
                 const IconComponent = p.icon || ShieldCheck;
+                const cardKey = isWrap ? `${p.id || p.name}-${offset}` : p.id || p.name;
 
                 return (
                   <motion.div
-                    key={p.id || p.name}
+                    key={cardKey}
                     onClick={() => setActiveCard(idx)}
-                    className={`absolute flex flex-col items-center justify-center cursor-pointer text-center w-36 h-40 p-3 rounded-2xl border transition-colors ${
+                    className={`absolute flex flex-col items-center justify-center cursor-pointer text-center w-40 h-44 p-4 rounded-2xl border transition-colors ${
                       isActive
                         ? "border-[#05D9C8]/60 bg-[#0A265C]/95 backdrop-blur-sm shadow-[0_0_25px_rgba(5,217,200,0.35)]"
                         : "border-[#05D9C8]/25 bg-[#071D48]/85 backdrop-blur-sm shadow-xl hover:border-[#05D9C8]/50"
                     }`}
-                    animate={{
-                      x: posX,
-                      y: posY,
-                      rotate: rot,
-                      scale: isActive ? 1.02 : 1 - abs * 0.08,
-                      opacity: abs > 2 ? 0 : abs === 2 ? 0.7 : 1,
-                      zIndex: 30 - abs * 5,
-                    }}
-                    transition={{ type: "spring", stiffness: 120, damping: 17 }}
+                    initial={isWrap ? { x: posX, y: posY, rotate: rot, scale, opacity: 0 } : false}
+                    animate={{ x: posX, y: posY, rotate: rot, scale, opacity: targetOpacity, zIndex: 30 - abs * 5 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ type: "spring", stiffness: 160, damping: 22 }}
                   >
                     {/* Product Icon */}
                     <div
                       className={`rounded-xl border transition-all ${
                         isActive
-                          ? "p-2.5 mb-1.5 bg-[#05D9C8]/20 border-[#05D9C8]/50 shadow-[0_0_12px_rgba(5,217,200,0.3)]"
-                          : "p-2 mb-1 bg-cyan-500/10 border-[#05D9C8]/20"
+                          ? "p-3 mb-2 bg-[#05D9C8]/20 border-[#05D9C8]/50 shadow-[0_0_12px_rgba(5,217,200,0.3)]"
+                          : "p-2 mb-1.5 bg-cyan-500/10 border-[#05D9C8]/20"
                       }`}
                     >
                       <IconComponent
-                        className={`${isActive ? "size-6.5 text-[#05D9C8]" : "size-5.5 text-cyan-200/85"}`}
+                        className={`${isActive ? "size-7 text-[#05D9C8]" : "size-5.5 text-cyan-200/85"}`}
                         weight={isActive ? "fill" : "regular"}
                       />
                     </div>
 
-                    {/* Product Title — Crisp white font */}
+                    {/* Product Title */}
                     <span
                       className={`leading-tight text-white tracking-tight ${
-                        isActive ? "text-xs font-bold text-white drop-shadow-sm" : "text-xs font-medium text-white/90"
+                        isActive ? "text-sm font-bold text-white drop-shadow-sm" : "text-xs font-medium text-white/90"
                       }`}
                     >
                       {p.name}
                     </span>
 
-                    {/* Product Tagline — Bright, clear, readable text */}
-                    {p.tagline && (
-                      <span
-                        className={`leading-snug px-1 mt-1 text-center ${
-                          isActive
-                            ? "text-[11px] font-normal text-cyan-100/95 max-w-32 line-clamp-2"
-                            : "text-[10px] font-normal text-white/70 max-w-28 line-clamp-2"
-                        }`}
-                      >
+                    {/* Product Tagline — only shown on the active card */}
+                    {isActive && p.tagline && (
+                      <span className="leading-snug px-1 mt-1.5 text-center text-[11px] font-normal text-cyan-100/95 max-w-36 line-clamp-2">
                         {p.tagline}
                       </span>
                     )}
                   </motion.div>
                 );
               })}
-            </div>
+            </AnimatePresence>
           </div>
 
           {/* Bottom Horizon Arc & Footer Text */}
@@ -420,12 +403,12 @@ export function MagicLoginPage() {
         </aside>
 
         {/* Right — Form */}
-        <section className="flex h-full flex-col justify-center items-center overflow-y-auto bg-[#F5F7FB] px-4 py-8 lg:px-6">
+        <section className="flex min-h-dvh lg:h-screen flex-col justify-start items-center overflow-y-auto bg-[#F5F7FB] px-4 py-8 lg:px-6 lg:py-12">
           <div className="mb-6 flex items-center gap-3 lg:hidden">
             <img src="/logo.png" alt="ToggleNow" className="h-8 w-auto object-contain" />
           </div>
 
-          <div className="w-full max-w-lg rounded-3xl border border-border bg-white p-10 shadow-xl">
+          <div className="w-full max-w-lg rounded-3xl border border-border bg-white p-10 shadow-xl my-auto">
             <div
               className="mx-auto flex size-14 items-center justify-center rounded-2xl"
               style={{ background: "linear-gradient(135deg, #204CED22, #05D9C822)" }}
@@ -437,12 +420,18 @@ export function MagicLoginPage() {
               You're Invited to Sign In
             </h1>
             <p className="mt-2 text-center text-sm leading-relaxed text-muted-foreground">
-              Confirm your details, then enter the security code from your invite email.
+              {storedName
+                ? "Enter the security code from your invite email."
+                : "Tell us your name and enter the security code from your invite email."}
             </p>
 
             <div className="mt-8">
-              {stage === "details" ? (
-                <form onSubmit={handleContinue} className="space-y-4">
+              <form onSubmit={handleVerify} className="space-y-4">
+                {storedName ? (
+                  <p className="text-sm text-black">
+                    Signing in as <span className="font-medium">{name}</span>
+                  </p>
+                ) : (
                   <div className="space-y-1.5">
                     <label className="block text-sm font-medium text-black">Your Name</label>
                     <div className="relative">
@@ -452,87 +441,43 @@ export function MagicLoginPage() {
                         required
                         autoFocus
                         value={name}
-                        onChange={(e) => {
-                          setName(e.target.value);
-                          setIsNameModified(true);
-                        }}
+                        onChange={(e) => setName(e.target.value)}
                         placeholder="e.g. Sarah"
                         className="w-full rounded-xl border border-input bg-surface-alt py-3 pl-11 pr-4 text-[15px] outline-none transition placeholder:text-caption focus:ring-2 focus:ring-primary/15"
                       />
                     </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="block text-sm font-medium text-black">Work Email</label>
-                    <div className="relative">
-                      <EnvelopeSimple className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-caption" />
-                      <input
-                        type="email"
-                        required
-                        value={email}
-                        onChange={(e) => handleEmailChange(e.target.value)}
-                        placeholder="you@company.com"
-                        className="w-full rounded-xl border border-input bg-surface-alt py-3 pl-11 pr-4 text-[15px] outline-none transition placeholder:text-caption focus:ring-2 focus:ring-primary/15"
-                      />
-                    </div>
                     <p className="text-xs text-caption">
-                      Must match the email your invite was sent to.
+                      This is saved to this device — you won't be asked again.
                     </p>
                   </div>
-                  {detailsError && <p className="text-sm text-destructive">{detailsError}</p>}
-                  <button
-                    type="submit"
-                    disabled={!email || !name || checkingEmail}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-[15px] font-medium text-white transition disabled:opacity-60"
-                    style={{ background: "linear-gradient(90deg, #204CED, #05D9C8)" }}
-                  >
-                    {checkingEmail ? "Checking…" : "Continue"}
-                    {!checkingEmail && <ArrowRight className="size-4" weight="bold" />}
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={handleVerify} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="block text-sm font-medium text-black">
-                        Security Code
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setStage("details");
-                          setFormError("");
-                        }}
-                        className="text-xs text-caption hover:text-foreground"
-                      >
-                        Change details
-                      </button>
-                    </div>
-                    <input
-                      inputMode="numeric"
-                      autoFocus
-                      maxLength={6}
-                      value={securityCode}
-                      onChange={(e) => setSecurityCode(e.target.value.replace(/\D/g, ""))}
-                      placeholder="6-digit code"
-                      className="w-full rounded-xl border border-input bg-surface-alt px-4 py-3 text-center text-lg tracking-[0.5em] outline-none focus:ring-2 focus:ring-primary/15"
-                    />
-                  </div>
-                  <p className="text-xs text-caption">
-                    Check the invite email sent to <span className="text-black">{email}</span> for
-                    your security code.
-                  </p>
-                  {formError && <p className="text-sm text-destructive">{formError}</p>}
-                  <button
-                    type="submit"
-                    disabled={loading || securityCode.length < 6}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-[15px] font-medium text-white transition disabled:opacity-60"
-                    style={{ background: "linear-gradient(90deg, #204CED, #05D9C8)" }}
-                  >
-                    {loading ? "Verifying…" : "Verify & Enter"}
-                    {!loading && <ArrowRight className="size-4" weight="bold" />}
-                  </button>
-                </form>
-              )}
+                )}
+
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-black">Security Code</label>
+                  <input
+                    inputMode="numeric"
+                    autoFocus={!!storedName}
+                    maxLength={6}
+                    value={securityCode}
+                    onChange={(e) => setSecurityCode(e.target.value.replace(/\D/g, ""))}
+                    placeholder="6-digit code"
+                    className="w-full rounded-xl border border-input bg-surface-alt px-4 py-3 text-center text-lg tracking-[0.5em] outline-none focus:ring-2 focus:ring-primary/15"
+                  />
+                </div>
+                <p className="text-xs text-caption">
+                  Check your invite email for your security code.
+                </p>
+                {formError && <p className="text-sm text-destructive">{formError}</p>}
+                <button
+                  type="submit"
+                  disabled={loading || !name.trim() || securityCode.length < 6}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-[15px] font-medium text-white transition disabled:opacity-60"
+                  style={{ background: "linear-gradient(90deg, #204CED, #05D9C8)" }}
+                >
+                  {loading ? "Verifying…" : "Verify & Enter"}
+                  {!loading && <ArrowRight className="size-4" weight="bold" />}
+                </button>
+              </form>
 
               <ul className="mt-6 grid grid-cols-2 gap-3 text-xs text-caption">
                 {[

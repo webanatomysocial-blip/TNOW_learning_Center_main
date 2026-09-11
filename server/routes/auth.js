@@ -41,7 +41,7 @@ router.get("/api/admin/me", requireAdmin, async (req, res) => {
     return res.json({ id: admin.id, email: admin.email });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: "Failed to fetch admin" });
+    return res.status(500).json({ message: "Failed to load admin profile" });
   }
 });
 

@@ -18,11 +18,12 @@ import {
   Coins,
   TrendUp,
   CheckCircle,
+  LockSimple,
 } from "@phosphor-icons/react";
-import { INDUSTRIES } from "@/lib/experience-data";
 import { useExperience } from "@/lib/experience-store";
 import { UserProfileMenu } from "@/components/UserProfileMenu";
 import { useApiGet } from "@/lib/use-api";
+import { apiSend } from "@/lib/api";
 import { useDocumentHead } from "@/lib/use-document-head";
 
 const PRODUCT_TEASERS = {
@@ -116,6 +117,12 @@ const PRODUCT_TEASERS = {
   },
 };
 
+// Unlocked (available, not locked) → locked → coming soon.
+function sortRank(p) {
+  if (p.locked) return 1;
+  return p.status === "available" ? 0 : 2;
+}
+
 export function ProductSelection() {
   useDocumentHead({
     meta: [
@@ -129,59 +136,93 @@ export function ProductSelection() {
   });
   const { data, isLoading, isError } = useApiGet("/api/products");
   const inviteId = useExperience((s) => s.inviteId);
-  const { data: allowedData } = useApiGet(`/api/invites/${inviteId}/allowed-products`, {
-    enabled: !!inviteId,
-  });
+  const { data: allowedData, refetch: refetchAllowed } = useApiGet(
+    `/api/invites/${inviteId}/allowed-products`,
+    { enabled: !!inviteId },
+  );
   const allowedSlugs = allowedData?.allowed_product_slugs ?? [];
+  const pendingRequestSlugs = allowedData?.pending_product_requests ?? [];
   const ALL_PRODUCTS = data ?? [];
-  const PRODUCTS = allowedSlugs.length
-    ? ALL_PRODUCTS.filter((p) => allowedSlugs.includes(p.slug))
-    : ALL_PRODUCTS;
+  // Every product stays visible — one scoped to specific products doesn't hide the
+  // rest, it shows them locked with a way to request access instead.
+  const PRODUCTS = ALL_PRODUCTS.map((p) => ({
+    ...p,
+    locked: allowedSlugs.length > 0 && p.status === "available" && !allowedSlugs.includes(p.slug),
+  }));
   const [query, setQuery] = useState("");
-  const [industry, setIndustry] = useState(null);
   const [selectedTeaserId, setSelectedTeaserId] = useState(null);
   const [teaserTab, setTeaserTab] = useState("overview");
   const [teaserRequested, setTeaserRequested] = useState({});
   const [requestLoading, setRequestLoading] = useState(false);
+  const [lockedProductSlug, setLockedProductSlug] = useState(null);
+  const [lockedRequestSubmitting, setLockedRequestSubmitting] = useState(false);
+  const [locallyRequested, setLocallyRequested] = useState({});
 
   const user = useExperience((s) => s.user);
   const reset = useExperience((s) => s.reset);
 
-  const handleCardClick = (productId, available) => {
-    if (!available) {
+  const handleCardClick = (productId, available, locked) => {
+    if (locked) {
+      setLockedProductSlug(productId);
+    } else if (!available) {
       setSelectedTeaserId(productId);
       setTeaserTab("overview");
     }
   };
 
-  const handleRequestPriority = () => {
-    if (!selectedTeaserId) return;
+  async function handleRequestPriority() {
+    if (!selectedTeaserId || !user?.email) return;
     setRequestLoading(true);
-    setTimeout(() => {
+    try {
+      await apiSend("/api/notify-me", "POST", {
+        email: user.email,
+        name: user.name,
+        productSlug: selectedTeaserId,
+      });
       setTeaserRequested((prev) => ({ ...prev, [selectedTeaserId]: true }));
+    } catch {
+      // best-effort — the confirmed state below still tells them what to expect
+      setTeaserRequested((prev) => ({ ...prev, [selectedTeaserId]: true }));
+    } finally {
       setRequestLoading(false);
-    }, 600);
-  };
+    }
+  }
+
+  async function handleRequestProductAccess() {
+    if (!lockedProductSlug || !inviteId || !user?.email) return;
+    setLockedRequestSubmitting(true);
+    try {
+      await apiSend(`/api/invites/${inviteId}/request-product-access`, "POST", {
+        email: user.email,
+        productSlug: lockedProductSlug,
+      });
+      setLocallyRequested((prev) => ({ ...prev, [lockedProductSlug]: true }));
+      refetchAllowed();
+    } catch {
+      // best-effort — the button state below still reflects local intent
+      setLocallyRequested((prev) => ({ ...prev, [lockedProductSlug]: true }));
+    } finally {
+      setLockedRequestSubmitting(false);
+    }
+  }
 
   const selectedProduct = PRODUCTS.find((p) => p.slug === selectedTeaserId);
   const teaserData = selectedTeaserId ? PRODUCT_TEASERS[selectedTeaserId] : null;
+  const lockedProduct = PRODUCTS.find((p) => p.slug === lockedProductSlug);
+  const lockedAlreadyRequested =
+    !!lockedProductSlug &&
+    (locallyRequested[lockedProductSlug] || pendingRequestSlugs.includes(lockedProductSlug));
 
-  const filtered = PRODUCTS.filter((p) => {
-    const matchesQuery =
+  const filtered = PRODUCTS.filter(
+    (p) =>
       p.name.toLowerCase().includes(query.toLowerCase()) ||
-      p.description.toLowerCase().includes(query.toLowerCase());
-
-    // Optional industry filter - SecOps is suitable for all, but let's make it look responsive
-    if (industry) {
-      return matchesQuery;
-    }
-    return matchesQuery;
-  });
+      p.description.toLowerCase().includes(query.toLowerCase()),
+  ).sort((a, b) => sortRank(a) - sortRank(b));
 
   return (
     <main className="min-h-dvh bg-[#FFFFFF] text-foreground relative overflow-hidden bg-[radial-gradient(circle_at_top,rgba(32,76,237,0.06),transparent_45%)]">
       <header className="border-b border-border bg-background">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+        <div className="mx-auto flex max-w-[1400px] items-center justify-between px-6 py-4">
           <Link to="/experience" className="flex items-center">
             <img src="/logo.png" alt="ToggleNow" className="h-8 w-auto object-contain" />
           </Link>
@@ -191,7 +232,7 @@ export function ProductSelection() {
         </div>
       </header>
 
-      <section className="mx-auto max-w-7xl px-6 py-14">
+      <section className="mx-auto max-w-[1400px] px-6 py-14">
         <h1 className="font-display text-4xl font-normal leading-tight md:text-5xl">
           Choose your experience
         </h1>
@@ -200,32 +241,15 @@ export function ProductSelection() {
           minutes and ends with a workshop tailored to you.
         </p>
 
-        <div className="mt-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="relative w-full md:max-w-sm">
-            <MagnifyingGlass className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-caption" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search products"
-              className="w-full rounded-2xl border border-border bg-background py-3 pl-11 pr-4 text-[15px] outline-none placeholder:text-caption focus:ring-2 focus:ring-primary/15"
-              style={{ borderRadius: 16 }}
-            />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {INDUSTRIES.map((i) => (
-              <button
-                key={i}
-                onClick={() => setIndustry(industry === i ? null : i)}
-                className={`rounded-full border px-3.5 py-1.5 text-xs font-medium transition ${
-                  industry === i
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-background text-muted-foreground hover:border-foreground/20 hover:text-foreground"
-                }`}
-              >
-                {i}
-              </button>
-            ))}
-          </div>
+        <div className="mt-8 relative w-full md:max-w-sm">
+          <MagnifyingGlass className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-caption" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search products"
+            className="w-full rounded-2xl border border-border bg-background py-3 pl-11 pr-4 text-[15px] outline-none placeholder:text-caption focus:ring-2 focus:ring-primary/15"
+            style={{ borderRadius: 16 }}
+          />
         </div>
 
         {/* Grid Layout (3x2 format for 5 cards) */}
@@ -241,7 +265,7 @@ export function ProductSelection() {
               <div key={p.slug} className="w-full">
                 <ProductCard
                   product={p}
-                  onClick={() => handleCardClick(p.slug, p.status === "available")}
+                  onClick={() => handleCardClick(p.slug, p.status === "available", p.locked)}
                 />
               </div>
             ))}
@@ -383,40 +407,104 @@ export function ProductSelection() {
             </div>
 
             {/* Bottom Form Action */}
-            <div className="mt-6 border-t border-border/60 pt-5 flex items-center justify-between">
-              <div>
+            <div className="mt-6 border-t border-border/60 pt-5 flex flex-wrap items-center justify-between gap-3">
+              <div className="min-w-0">
                 {user && (
                   <p className="text-xs text-muted-foreground">
-                    Briefing notifications will be sent to:{" "}
+                    Notified at:{" "}
                     <strong className="text-foreground">{user.email}</strong>
                   </p>
                 )}
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 shrink-0">
                 <button
                   onClick={() => setSelectedTeaserId(null)}
-                  className="rounded-full border border-border bg-background px-4 py-2 text-xs font-semibold hover:bg-surface transition-colors"
+                  className="whitespace-nowrap rounded-full border border-border bg-background px-4 py-2 text-xs font-semibold hover:bg-surface transition-colors"
                 >
-                  Close Preview
+                  Close
                 </button>
                 {teaserRequested[selectedTeaserId] ? (
                   <button
                     disabled
-                    className="rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 px-4 py-2 text-xs font-semibold inline-flex items-center gap-1.5"
+                    className="whitespace-nowrap rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 px-4 py-2 text-xs font-semibold inline-flex items-center gap-1.5"
                   >
-                    <CheckCircle className="size-4" weight="fill" /> On Priority List
+                    <CheckCircle className="size-4" weight="fill" /> We'll notify you
                   </button>
                 ) : (
                   <button
                     onClick={handleRequestPriority}
                     disabled={requestLoading}
-                    className="rounded-full bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold hover:bg-primary-hover transition-all flex items-center gap-1.5"
+                    className="whitespace-nowrap rounded-full bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold hover:bg-primary-hover transition-all flex items-center gap-1.5 disabled:opacity-60"
                   >
                     <EnvelopeSimple className="size-4" weight="fill" />{" "}
-                    {requestLoading ? "Registering..." : "Request Priority Access"}
+                    {requestLoading ? "Sending…" : "Notify Me"}
                   </button>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Locked Product — Request Access Modal */}
+      {lockedProductSlug && lockedProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div
+            className="relative w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-float animate-in fade-in zoom-in-95 duration-200"
+            style={{ borderRadius: 24 }}
+          >
+            <button
+              onClick={() => setLockedProductSlug(null)}
+              className="absolute top-5 right-5 p-1.5 rounded-full hover:bg-surface border border-border text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Close"
+            >
+              <X className="size-4" weight="bold" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-1">
+              <div className="grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary">
+                <LockSimple className="size-5" weight="duotone" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="font-display text-lg font-bold">{lockedProduct.name}</h2>
+                  <span className="rounded-full bg-foreground/5 px-2.5 py-0.5 text-[10px] font-bold text-caption uppercase tracking-wider">
+                    Locked
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">Not included in your invite</p>
+              </div>
+            </div>
+
+            <p className="mt-4 text-sm text-muted-foreground leading-relaxed">
+              You don't currently have access to {lockedProduct.name}. Request access and we'll email you
+              the moment it's approved.
+            </p>
+
+            <div className="mt-6 flex items-center justify-end gap-2">
+              <button
+                onClick={() => setLockedProductSlug(null)}
+                className="rounded-full border border-border bg-background px-4 py-2 text-xs font-semibold hover:bg-surface transition-colors"
+              >
+                Close
+              </button>
+              {lockedAlreadyRequested ? (
+                <button
+                  disabled
+                  className="rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 px-4 py-2 text-xs font-semibold inline-flex items-center gap-1.5"
+                >
+                  <CheckCircle className="size-4" weight="fill" /> Request sent
+                </button>
+              ) : (
+                <button
+                  onClick={handleRequestProductAccess}
+                  disabled={lockedRequestSubmitting}
+                  className="rounded-full bg-primary text-primary-foreground px-4 py-2 text-xs font-semibold hover:bg-primary-hover transition-all flex items-center gap-1.5 disabled:opacity-60"
+                >
+                  <EnvelopeSimple className="size-4" weight="fill" />{" "}
+                  {lockedRequestSubmitting ? "Sending…" : "Request Access"}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -536,11 +624,12 @@ const CARD_THEMES = {
 
 function ProductCard({ product, onClick }) {
   const available = product.status === "available";
+  const locked = !!product.locked;
   const theme = CARD_THEMES[product.slug] || CARD_THEMES.secops;
 
   const body = (
     <article
-      className={`group relative flex h-65 flex-col rounded-xl border ${theme.border} ${theme.bg} p-6 overflow-hidden transition-all duration-180 ease-out hover:shadow-[0_12px_30px_rgba(32,76,237,0.06)] hover:border-primary/40 hover:-translate-y-0.75 hover:scale-[1.01] cursor-pointer select-none`}
+      className={`group relative flex h-65 flex-col rounded-xl border ${theme.border} ${theme.bg} p-6 overflow-hidden transition-all duration-180 ease-out hover:shadow-[0_12px_30px_rgba(32,76,237,0.06)] hover:border-primary/40 hover:-translate-y-0.75 cursor-pointer select-none ${locked ? "opacity-75" : ""}`}
     >
       {/* Decorative Accent Graphic */}
       <div className="absolute inset-0 opacity-40 group-hover:opacity-60 transition-opacity pointer-events-none">
@@ -550,8 +639,10 @@ function ProductCard({ product, onClick }) {
       {/* Top Badge */}
       <div className="z-10 self-start">
         <div className="inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[10px] font-normal text-[#111111] shadow-sm border border-black/4">
-          <span className={`size-1.5 rounded-full ${theme.dotColor}`} />
-          {available ? "Available" : "Coming Soon"}
+          <span className={`size-1.5 rounded-full ${
+            locked ? "bg-red-500" : available ? "bg-emerald-500" : "bg-amber-500"
+          }`} />
+          {locked ? "Locked" : available ? "Unlocked" : "Coming Soon"}
         </div>
       </div>
 
@@ -568,21 +659,26 @@ function ProductCard({ product, onClick }) {
       {/* CTA bottom left */}
       <div className="z-10 mt-auto pt-3">
         <span className="inline-block border-b border-current pb-0.5 font-bold text-[11px] tracking-wide text-foreground hover:opacity-85 transition-opacity">
-          {product.cta} →
+          {locked ? "Request access" : available ? "Start Experience" : product.cta} →
         </span>
       </div>
     </article>
   );
 
-  if (!available) {
+  if (locked || !available) {
     return (
       <div onClick={onClick} className="block h-full">
         {body}
       </div>
     );
   }
+  const startPath =
+    product.slug === "secops"
+      ? `/experience/${product.slug}/assessment`
+      : `/experience/${product.slug}`;
+
   return (
-    <Link to={`/experience/${product.slug}`} className="block h-full">
+    <Link to={startPath} className="block h-full">
       {body}
     </Link>
   );

@@ -6,7 +6,7 @@ import { useApiGet } from "@/lib/use-api";
 import { useState, useEffect } from "react";
 import { motion } from "motion/react";
 import { useDocumentHead } from "@/lib/use-document-head";
-import { embedVideo } from "@/lib/video-embed";
+import { embedVideo, extractGumletId } from "@/lib/video-embed";
 import { resolveWhyIcon as resolveIcon } from "@/lib/why-icons";
 
 const logs = [
@@ -63,7 +63,11 @@ export function WhyPage() {
   const description = pageData?.description || "";
   const videoTitle = pageData?.extra?.videoTitle || "Walkthrough Demo";
   const videoDuration = pageData?.extra?.videoDuration || "";
-  const videoUrl = pageData?.extra?.videoUrl || "";
+  const gumletId = pageData?.extra?.gumletId || "";
+  const gumletVideoId = extractGumletId(gumletId);
+  const videoUrl = gumletVideoId
+    ? `https://play.gumlet.io/embed/${gumletVideoId}`
+    : (pageData?.extra?.videoUrl || "");
   const realVideo = videoUrl ? embedVideo(videoUrl) : null;
 
   const [status, setStatus] = useState("idle");
@@ -114,8 +118,8 @@ export function WhyPage() {
   };
 
   return (
-    <div className="lg:h-full lg:flex lg:flex-col lg:justify-between select-none">
-      <div className="space-y-4 lg:space-y-3 select-none">
+    <div className="h-full flex flex-col justify-between overflow-hidden">
+      <div className="flex-1 overflow-y-auto pb-6 scrollbar-none space-y-4 lg:space-y-3">
         <SectionHeader
           eyebrow={`Step 2 · Why ${product?.name ?? ""}`}
           title={headline}
@@ -125,7 +129,14 @@ export function WhyPage() {
         <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 xl:gap-6 items-stretch mt-4">
           {/* Left Column: Video Block wrapped in premium card container */}
           <div className="xl:col-span-7">
-            <div className="p-3 lg:p-2.5 rounded-2xl border border-[#E3EBFF] bg-linear-to-b from-white to-[#F7FAFF] shadow-[0_12px_30px_rgba(32,76,237,0.04)] h-full flex flex-col justify-center">
+            <div
+              className="p-4 h-full flex flex-col justify-center rounded-[20px]"
+              style={{
+                background:
+                  "linear-gradient(135deg, rgba(40, 84, 245, 0.06), rgba(108, 59, 255, 0.05)), #FFFFFF",
+                border: "1px solid #E3E7F5",
+              }}
+            >
               {realVideo ? (
                 <div
                   className="relative w-full h-80 lg:h-72.5 xl:h-75 rounded-[18px] overflow-hidden border border-slate-800 bg-black"
@@ -272,8 +283,8 @@ export function WhyPage() {
           {/* Right Column: Key Takeaways cards */}
           <div className="xl:col-span-5 flex flex-col justify-between space-y-3">
             <div className="space-y-3">
-              <div className="border-b border-border/60 pb-1.5">
-                <p className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-primary">
+              <div className="border-b border-[#E3E7F5] pb-1.5">
+                <p className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-[#6C3BFF]">
                   Key Takeaways
                 </p>
               </div>
@@ -298,17 +309,22 @@ export function WhyPage() {
                     <motion.div
                       key={i}
                       variants={cardVariants}
-                      className="group flex flex-col p-4 lg:p-3 bg-linear-to-b from-[#FCFDFF] to-[#F7FAFF] border border-[#E3EBFF] hover:border-primary/40 rounded-lg h-38.75 lg:h-33.75 xl:h-35 transition-all duration-180 ease-out hover:-translate-y-0.5 hover:scale-[1.01] hover:shadow-[0_8px_25px_rgba(32,76,237,0.05)]"
+                      className="group flex flex-col p-4 lg:p-3.5 rounded-[20px] min-h-[155px] lg:min-h-[135px] xl:min-h-[140px] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
+                      style={{
+                        background:
+                          "linear-gradient(135deg, rgba(40, 84, 245, 0.06), rgba(108, 59, 255, 0.05)), #FFFFFF",
+                        border: "1px solid #E3E7F5",
+                      }}
                     >
-                      <div className="flex items-center gap-2">
-                        <div className="flex size-6.5 items-center justify-center rounded-full bg-primary/15 text-primary shrink-0 border border-primary/20">
-                          <Icon className="size-3.5 stroke-[2.25]" />
+                      <div className="flex items-center gap-2.5">
+                        <div className="flex size-7.5 items-center justify-center rounded-lg bg-[#F3EFFF] text-[#6C3BFF] shrink-0 border border-[#6C3BFF]/20 shadow-xs">
+                          <Icon className="size-4 stroke-[2.25] text-[#6C3BFF]" />
                         </div>
-                        <h3 className="font-display text-[13px] font-semibold text-slate-800 tracking-tight leading-tight">
+                        <h3 className="text-[13px] font-bold text-[#101735] tracking-tight leading-tight">
                           {f.title}
                         </h3>
                       </div>
-                      <p className="mt-2 text-[11px] text-slate-500 leading-snug font-normal line-clamp-2">
+                      <p className="mt-2 text-[11px] text-slate-500 leading-snug font-normal">
                         {f.desc}
                       </p>
                     </motion.div>
@@ -321,7 +337,7 @@ export function WhyPage() {
         </div>
       </div>
 
-      <StepNav current="why" alignEnd className="mt-auto pt-4 lg:pt-3" />
+      <StepNav current="why" className="mt-auto" />
     </div>
   );
 }

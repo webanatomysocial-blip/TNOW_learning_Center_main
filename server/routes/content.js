@@ -1,6 +1,7 @@
 const express = require("express");
 const db = require("../db");
 const { requireAdmin } = require("../middleware/auth");
+const { sendProductNowAvailableEmail } = require("../lib/mailer");
 
 const router = express.Router();
 
@@ -70,6 +71,16 @@ function stringifyPayload(payload, jsonFields) {
   return out;
 }
 
+const PRODUCT_ENRICHED_RESOURCES = new Set(["capabilities", "stories", "ai-qa"]);
+
+function withProductFields(record, product) {
+  return {
+    ...record,
+    product_slug: product?.slug ?? null,
+    product_name: product?.name ?? null,
+  };
+}
+
 function registerResource(name, config) {
   const { table, jsonFields, required, productScoped, productRequiredOnQuery } = config;
 
@@ -90,7 +101,7 @@ function registerResource(name, config) {
         query = query.where({ product_id: productId });
       }
 
-      if (name === "capabilities" || name === "stories") {
+      if (PRODUCT_ENRICHED_RESOURCES.has(name)) {
         // Include product slug/name for admin table display.
         const rows = await query.select(`${table}.*`);
         const productIds = [...new Set(rows.map((r) => r.product_id).filter(Boolean))];
@@ -99,11 +110,7 @@ function registerResource(name, config) {
           : [];
         const productsById = Object.fromEntries(products.map((p) => [p.id, p]));
         return res.json(
-          rows.map((r) => ({
-            ...parseRecord(r, jsonFields),
-            product_slug: productsById[r.product_id]?.slug ?? null,
-            product_name: productsById[r.product_id]?.name ?? null,
-          })),
+          rows.map((r) => withProductFields(parseRecord(r, jsonFields), productsById[r.product_id])),
         );
       }
 
@@ -120,7 +127,14 @@ function registerResource(name, config) {
     try {
       const row = await db(table).where({ id: req.params.id }).first();
       if (!row) return res.status(404).json({ message: "Not found" });
-      res.json(parseRecord(row, jsonFields));
+      let parsed = parseRecord(row, jsonFields);
+      if (PRODUCT_ENRICHED_RESOURCES.has(name) && row.product_id) {
+        // Same enrichment as the list endpoint — a full-page edit form (e.g.
+        // StoryFormPage) needs product_slug to preselect the Product field.
+        const product = await db("products").where({ id: row.product_id }).first();
+        parsed = withProductFields(parsed, product);
+      }
+      res.json(parsed);
     } catch (err) {
       console.error(err);
       res.status(500).json({ message: `Failed to fetch ${name.slice(0, -1)}` });
@@ -188,6 +202,30 @@ function registerResource(name, config) {
 
       await db(table).where({ id: req.params.id }).update(stringified);
       const updated = await db(table).where({ id: req.params.id }).first();
+
+      // Product just went live — email everyone who clicked "Notify Me" on it
+      // while it was still "coming soon". Only fires once per person per launch:
+      // notified_at gets stamped so a later unrelated edit to this product
+      // doesn't re-send it, and re-requesting after status changes again
+      // (coming -> available -> coming -> available) inserts/updates a fresh row
+      // in /api/notify-me, which resets notified_at back to null.
+      if (name === "products" && existing.status !== "available" && updated.status === "available") {
+        const waiting = await db("product_notify_requests").where({
+          product_slug: updated.slug,
+          notified_at: null,
+        });
+        for (const w of waiting) {
+          sendProductNowAvailableEmail({ userEmail: w.email, userName: w.name, productSlug: updated.slug }).catch(
+            (e) => console.error("[mailer] Failed to send product-now-available email:", e.message),
+          );
+        }
+        if (waiting.length) {
+          await db("product_notify_requests")
+            .whereIn("id", waiting.map((w) => w.id))
+            .update({ notified_at: new Date() });
+        }
+      }
+
       res.json(parseRecord(updated, jsonFields));
     } catch (err) {
       console.error(err);

@@ -10,25 +10,15 @@ import {
   House,
   PaperPlaneTilt,
   ArrowRight,
+  Sparkle,
 } from "@phosphor-icons/react";
 import { getSteps, useExperience, useProgress } from "@/lib/experience-store";
 import { useExperience as useExperienceStore } from "@/lib/experience-store";
 import { useApiGet } from "@/lib/use-api";
 import { apiSend } from "@/lib/api";
 import { UserProfileMenu } from "@/components/UserProfileMenu";
+import { findBestQaMatch, rankQaMatches } from "@/lib/ai-qa-match";
 import { NotFound } from "@/pages/NotFound";
-
-const CloverIcon = ({ className, ...props }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 256 256"
-    fill="currentColor"
-    className={className}
-    {...props}
-  >
-    <path d="M211.66,165.54C225.16,159.7,232,144.37,232,120s-6.84-39.7-20.34-45.55c-11.65-5-27.24-2.23-46.46,8.35,10.58-19.22,13.39-34.81,8.35-46.46C167.7,22.84,152.37,16,128,16S88.3,22.84,82.45,36.34c-5,11.65-2.23,27.24,8.35,46.45C71.58,72.22,56,69.4,44.34,74.45,30.84,80.3,24,95.63,24,120s6.84,39.7,20.34,45.54A31,31,0,0,0,56.8,168c9.6,0,21-3.62,34-10.79C80.22,176.41,77.41,192,82.45,203.65,88.3,217.15,103.63,224,128,224s39.7-6.85,45.55-20.35a32.24,32.24,0,0,0,2.34-15c10.45,16.23,19.64,34.48,24.35,53.33A8,8,0,0,0,208,248a8.13,8.13,0,0,0,1.95-.24,8,8,0,0,0,5.82-9.7c-6.94-27.76-22.27-53.8-37.86-74.79Q189.68,168,199.2,168A31,31,0,0,0,211.66,165.54Zm-6.37-76.4C214.14,93,216,108,216,120s-1.86,27-10.7,30.86c-8.36,3.63-23.52-1.31-42.68-13.91a243.4,243.4,0,0,1-22.54-17C158.49,104.37,190.4,82.68,205.29,89.14ZM97.14,42.7C101,33.86,116,32,128,32s27,1.86,30.86,10.7c3.63,8.36-1.31,23.52-13.91,42.68a243.4,243.4,0,0,1-17,22.54C112.37,89.51,90.69,57.59,97.14,42.7ZM50.71,150.86C41.86,147,40,132,40,120s1.86-27,10.7-30.86A15.64,15.64,0,0,1,57,88c8.75,0,21.34,5.17,36.4,15.07a243.4,243.4,0,0,1,22.54,17C97.51,135.62,65.59,157.32,50.71,150.86Zm108.15,46.43C155,206.14,140,208,128,208s-27-1.86-30.86-10.7c-3.63-8.36,1.31-23.52,13.91-42.68a243.4,243.4,0,0,1,17-22.54C143.63,150.49,165.31,182.41,158.86,197.29Z" />
-  </svg>
-);
 
 const ClubIcon = ({ className, ...props }) => (
   <svg
@@ -55,7 +45,8 @@ export function ExperienceLayout() {
     }
   }, [pathname]);
 
-  const { data: products, isLoading: productsLoading } = useApiGet("/api/products");
+  const { data: products, isLoading: productsLoading } =
+    useApiGet("/api/products");
   const product = (products ?? []).find((p) => p.slug === productSlug);
 
   const { pct, done, total } = useProgress(pathname);
@@ -67,7 +58,8 @@ export function ExperienceLayout() {
   const storiesRead = useExperience((s) => s.storiesRead);
   const aiQuestionsAsked = useExperience((s) => s.aiQuestionsAsked);
   const videosWatched = useExperience((s) => s.videosWatched);
-  const [aiOpen, setAiOpen] = useState(false);
+  const aiOpen = useExperience((s) => s.aiOpen);
+  const setAiOpen = useExperience((s) => s.setAiOpen);
 
   // Reports how far this customer has gotten to the invite they came in on, so the
   // admin can see engagement in the Sent Emails list. Only invite-link logins have an
@@ -105,8 +97,9 @@ export function ExperienceLayout() {
   const basePath = `/experience/${productSlug}`;
 
   const currentStep =
-    steps.find((s) => (s.path === basePath ? pathname === basePath : pathname.startsWith(s.path))) ??
-    steps[0];
+    steps.find((s) =>
+      s.path === basePath ? pathname === basePath : pathname.startsWith(s.path),
+    ) ?? steps[0];
 
   const capabilityLabel = params?.capability?.replace(/-/g, " ");
 
@@ -114,13 +107,21 @@ export function ExperienceLayout() {
   const nextStep = steps[currentIdx + 1];
 
   return (
-    <div className="min-h-dvh lg:h-screen lg:max-h-screen lg:flex lg:flex-col bg-[#FFFFFF] text-foreground relative overflow-hidden bg-[radial-gradient(circle_at_top,_rgba(32,76,237,0.06),_transparent_45%)]">
+    <div className="h-screen max-h-screen flex flex-col secops-page-bg text-[#101735] relative overflow-hidden">
+      {/* Ambient Depth Glows */}
+      <div className="absolute top-0 left-0 w-[540px] h-[540px] rounded-full bg-[#2854F5]/[0.05] opacity-100 blur-[280px] pointer-events-none -translate-x-1/2 -translate-y-1/2 z-0" />
+      <div className="absolute bottom-0 right-0 w-[680px] h-[680px] rounded-full bg-[#6C3BFF]/[0.05] opacity-100 blur-[300px] pointer-events-none translate-x-1/3 translate-y-1/3 z-0" />
+
       {/* Top bar */}
-      <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
-        <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-3 px-4 md:px-6 py-3">
+      <header className="sticky top-0 z-30 border-b border-[#E3E7F5] bg-white/90 backdrop-blur-md relative">
+        <div className="w-full flex items-center justify-between gap-3 px-4 md:px-12 lg:px-[100px] py-3">
           <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
             <Link to="/experience" className="flex items-center shrink-0">
-              <img src="/logo.png" alt="ToggleNow" className="h-6 sm:h-7 w-auto object-contain" />
+              <img
+                src="/logo.png"
+                alt="ToggleNow"
+                className="h-6 sm:h-7 w-auto object-contain"
+              />
             </Link>
             <CaretRight className="size-3 text-caption shrink-0" />
             <Link
@@ -160,7 +161,7 @@ export function ExperienceLayout() {
       </header>
 
       {/* Mobile Sticky Step Header */}
-      <div className="sticky top-[49px] sm:top-[53px] lg:hidden z-20 border-b border-border bg-background/95 backdrop-blur-md px-4 py-3 shadow-sm">
+      <div className="sticky top-[49px] sm:top-[53px] lg:hidden z-20 border-b border-border backdrop-blur-md px-4 py-3 shadow-sm">
         <div className="flex items-center justify-between gap-3">
           {/* Step Info */}
           <div className="min-w-0">
@@ -202,22 +203,27 @@ export function ExperienceLayout() {
               <Link
                 key={s.id}
                 to={s.path}
+                ref={isActive ? (el) => el?.scrollIntoView({ block: "nearest", inline: "center" }) : undefined}
                 className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] transition-all shrink-0 border ${
                   isActive
-                    ? "bg-primary/10 text-primary border-primary/25 font-semibold"
-                    : "bg-surface text-muted-foreground border-border/70"
+                    ? "bg-[#EEF3FF] text-[#2854F5] border-[#6C3BFF]/30 font-bold shadow-xs"
+                    : "bg-white/80 text-[#59627D] border-[#E3E7F5]"
                 }`}
               >
                 <span
-                  className={`grid size-4 place-items-center rounded-full text-[9px] font-bold ${
+                  className={`grid size-4 place-items-center rounded-full text-[9px] font-bold border ${
                     isDone
-                      ? "bg-primary text-primary-foreground"
+                      ? "bg-primary text-primary-foreground border-primary"
                       : isActive
-                        ? "bg-primary/20 text-primary border border-primary/30"
-                        : "bg-muted text-caption border border-border"
+                        ? "bg-white text-[#6C3BFF] border-[#6C3BFF]"
+                        : "bg-[#F8F9FD] text-[#8991A8] border-[#E3E7F5]"
                   }`}
                 >
-                  {isDone ? <Check className="size-2.5" weight="bold" /> : i + 1}
+                  {isDone ? (
+                    <Check className="size-2.5" weight="bold" />
+                  ) : (
+                    i + 1
+                  )}
                 </span>
                 <span>{s.label}</span>
               </Link>
@@ -226,10 +232,10 @@ export function ExperienceLayout() {
         </div>
       </div>
 
-      <div className="mx-auto flex w-full max-w-[1400px] gap-8 px-4 sm:px-6 py-6 md:py-8 lg:flex-1 lg:h-0 lg:overflow-hidden lg:py-5 lg:gap-6">
+      <div className="flex w-full gap-8 px-4 md:px-12 lg:px-[100px] pt-6 md:pt-8 lg:flex-1 lg:h-0 lg:overflow-hidden lg:pt-5 lg:gap-6">
         {/* Sidebar */}
-        <aside className="hidden lg:flex w-64 shrink-0 flex-col h-full overflow-y-auto scrollbar-none pr-1 justify-start gap-3 pb-2">
-          <div className="rounded-2xl border border-border bg-card p-4">
+        <aside className="hidden lg:flex w-64 shrink-0 flex-col h-full overflow-hidden justify-between gap-3 pb-1">
+          <div className="glass-sidebar p-5 relative z-10 flex-1 flex flex-col justify-between gap-2 overflow-hidden">
             <div className="flex items-center justify-between">
               <p className="text-[11px] font-semibold uppercase tracking-widest text-caption">
                 Your journey
@@ -238,11 +244,16 @@ export function ExperienceLayout() {
                 <Clock className="size-3" /> ~{product.time || "12 min"}
               </span>
             </div>
-            <p className="mt-1.5 font-display text-base font-semibold">{pct}% Complete</p>
+            <p className="mt-1.5 font-display text-base font-semibold">
+              {pct}% Complete
+            </p>
             <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-border">
               <div
-                className="h-full rounded-full bg-primary transition-all"
-                style={{ width: `${pct}%` }}
+                className="h-full rounded-full transition-all"
+                style={{
+                  width: `${pct}%`,
+                  background: "linear-gradient(90deg, #2854F5, #6C3BFF)",
+                }}
               />
             </div>
 
@@ -266,7 +277,7 @@ export function ExperienceLayout() {
               </div>
             </div>
 
-            <nav className="mt-4 space-y-0.5">
+            <nav className="mt-3 space-y-1 flex-1 overflow-y-auto scrollbar-none pr-0.5">
               {steps.map((s, i) => {
                 const isActive = currentStep.id === s.id;
                 const isDone = pathname.includes("/success") || completed[s.id];
@@ -274,20 +285,29 @@ export function ExperienceLayout() {
                   <Link
                     key={s.id}
                     to={s.path}
-                    className={`flex items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-xs transition ${
+                    ref={isActive ? (el) => el?.scrollIntoView({ block: "nearest" }) : undefined}
+                    className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs transition-all ${
                       isActive
-                        ? "bg-primary/10 text-primary font-medium"
-                        : "text-muted-foreground hover:bg-surface hover:text-foreground"
+                        ? "bg-[#EEF3FF] text-[#101735] font-bold border border-[#6C3BFF]/30 shadow-xs"
+                        : "text-[#59627D] hover:bg-white hover:text-[#101735]"
                     }`}
                   >
                     <span
-                      className={`grid size-5.5 place-items-center rounded-full text-[10px] font-semibold shrink-0 ${
+                      className={`grid size-5.5 place-items-center rounded-full text-[10px] font-bold shrink-0 transition-all ${
                         isDone
-                          ? "bg-primary text-primary-foreground"
+                          ? "text-white"
                           : isActive
-                            ? "border border-primary/40 bg-background text-primary"
-                            : "border border-border bg-background text-caption"
+                            ? "border border-[#6C3BFF] bg-white text-[#6C3BFF] shadow-[0_0_0_3px_rgba(108,59,255,0.12)]"
+                            : "border border-[#E3E7F5] bg-white text-[#8991A8]"
                       }`}
+                      style={
+                        isDone
+                          ? {
+                              background:
+                                "linear-gradient(135deg, #2854F5, #6C3BFF)",
+                            }
+                          : undefined
+                      }
                     >
                       {isDone ? <Check className="size-3" /> : i + 1}
                     </span>
@@ -299,7 +319,13 @@ export function ExperienceLayout() {
           </div>
 
           {/* Promo CTA Card */}
-          <div className="rounded-xl bg-[#204CED] text-white p-4 shrink-0 flex flex-col justify-between relative overflow-hidden border border-[#204CED]/10 group">
+          <div
+            className="rounded-xl text-white p-4 shrink-0 flex flex-col justify-between relative overflow-hidden border border-[#2854F5]/20 group"
+            style={{
+              background:
+                "radial-gradient(circle at 85% 10%, rgba(255,255,255,0.16), transparent 35%), linear-gradient(135deg, #2854F5 0%, #473DF2 45%, #6C3BFF 100%)",
+            }}
+          >
             <div>
               <span className="inline-block rounded-full bg-white/20 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-white">
                 Exclusive Invitation
@@ -308,15 +334,15 @@ export function ExperienceLayout() {
                 Book an Interactive SAP Security Workshop
               </h3>
               <p className="mt-1 text-[10px] text-white/80 leading-normal font-normal">
-                Connect with our specialists to analyze your system and review segregation-of-duties
-                risks live.
+                Connect with our specialists to analyze your system and review
+                segregation-of-duties risks live.
               </p>
             </div>
 
             <div className="mt-3">
               <Link
                 to={`${basePath}/book`}
-                className="w-full py-2 rounded-lg bg-white hover:bg-white/95 text-[#204CED] font-medium text-[11px] transition duration-200 text-center block shadow-sm active:scale-98 font-sans"
+                className="w-full py-2 rounded-lg bg-white hover:bg-white/95 text-[#2854F5] font-medium text-[11px] transition duration-200 text-center block shadow-sm active:scale-98 font-sans"
               >
                 Schedule Free Scan
               </Link>
@@ -325,27 +351,25 @@ export function ExperienceLayout() {
         </aside>
 
         {/* Main content */}
-        <main ref={mainRef} className="min-w-0 flex-1 pb-24 md:pb-16 lg:h-full lg:overflow-y-auto lg:pb-6 scrollbar-none">
-          <div className="fade-up lg:h-full lg:flex lg:flex-col">
+        <main
+          ref={mainRef}
+          className="min-w-0 flex-1 h-full relative flex flex-col overflow-hidden"
+        >
+          <div className="fade-up flex-1 flex flex-col overflow-hidden h-full">
             <Outlet context={{ product, productSlug }} />
           </div>
         </main>
       </div>
 
-      {/* Persistent AI drawer with soft glow */}
-      <div className="fixed bottom-6 right-6 z-40">
-        <div className="absolute inset-0 bg-primary opacity-30 blur-xl rounded-full scale-110 pointer-events-none" />
-        <button
-          onClick={() => setAiOpen(true)}
-          className="relative inline-flex size-12 md:size-auto md:h-auto items-center justify-center md:justify-start gap-2 rounded-full bg-primary p-3 md:px-5 md:py-3 text-sm font-medium text-primary-foreground shadow-float transition hover:bg-primary-hover hover:scale-105 active:scale-95"
-          aria-label="Open AI Expert"
-        >
-          <CloverIcon className="size-5 md:size-4 text-white" />
-          <span className="hidden md:inline">Ask AI Expert</span>
-        </button>
-      </div>
+      {/* The AI Expert drawer is opened from the chat icon in StepNav's footer
+          (see src/components/StepNav.jsx) — rendered once here so it isn't
+          remounted per page. */}
       {aiOpen && (
-        <AiDrawer productSlug={productSlug} productName={product.name} onClose={() => setAiOpen(false)} />
+        <AiDrawer
+          productSlug={productSlug}
+          productName={product.name}
+          onClose={() => setAiOpen(false)}
+        />
       )}
     </div>
   );
@@ -353,31 +377,61 @@ export function ExperienceLayout() {
 
 function AiDrawer({ productSlug, productName, onClose }) {
   const { data: qaData } = useApiGet(`/api/ai-qa?product=${productSlug}`);
-  const { data: pageData } = useApiGet(`/api/experience-pages?product=${productSlug}&page=ai`);
+  const { data: pageData } = useApiGet(
+    `/api/experience-pages?product=${productSlug}&page=ai`,
+  );
   const QA = qaData ?? [];
   const introMessage =
     pageData?.extra?.introMessage ??
     `Hi — I'm the ${productName} expert. Ask me anything, or pick a suggested question below.`;
 
-  const [messages, setMessages] = useState([{ role: "ai", text: introMessage }]);
+  const [messages, setMessages] = useState([
+    { role: "ai", text: introMessage },
+  ]);
   const [seededIntro, setSeededIntro] = useState(false);
   const [input, setInput] = useState("");
   const incAi = useExperienceStore((s) => s.incAi);
   const addAchievement = useExperienceStore((s) => s.addAchievement);
   const complete = useExperienceStore((s) => s.complete);
+  const messagesEndRef = useRef(null);
 
   if (!seededIntro && pageData) {
     setSeededIntro(true);
     setMessages([{ role: "ai", text: introMessage }]);
   }
 
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages]);
+
   function send(q) {
     if (!q.trim()) return;
-    const match = QA.find((item) => item.question === q);
-    const answer =
-      match?.answer ??
-      `Great question. Our ${productName} consultant will cover this in your workshop — I've noted it for the agenda.`;
-    setMessages((m) => [...m, { role: "user", text: q }, { role: "ai", text: answer }]);
+    const match = QA.find((item) => item.question === q) ?? findBestQaMatch(QA, q);
+
+    if (match) {
+      const sameTopic = QA.filter(
+        (item) => item.topic && item.topic === match.topic && item.question !== match.question,
+      );
+      const related = (sameTopic.length ? sameTopic : rankQaMatches(QA, match.question, 4))
+        .filter((item) => item.question !== q)
+        .slice(0, 3);
+      setMessages((m) => [
+        ...m,
+        { role: "user", text: q },
+        { role: "ai", text: match.answer, related },
+      ]);
+    } else {
+      // No confident match — show close candidates instead of guessing.
+      const candidates = rankQaMatches(QA, q, 5);
+      const text = candidates.length
+        ? "I want to make sure I answer the right question — did you mean one of these?"
+        : `Great question. Our ${productName} consultant will cover this in your workshop — I've noted it for the agenda.`;
+      setMessages((m) => [
+        ...m,
+        { role: "user", text: q },
+        { role: "ai", text, related: candidates },
+      ]);
+    }
     setInput("");
     incAi();
     addAchievement("firstAi");
@@ -386,12 +440,16 @@ function AiDrawer({ productSlug, productName, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex">
-      <div className="flex-1 bg-foreground/10 backdrop-blur-[2px]" onClick={onClose} />
+      <div
+        className="flex-1 bg-foreground/10 backdrop-blur-[2px]"
+        onClick={onClose}
+      />
       <aside className="flex w-full max-w-md flex-col bg-white/95 backdrop-blur-md border-l border-white/40 shadow-[0_15px_50px_rgba(32,76,237,0.12)]">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div className="flex items-center gap-2">
-            <div className="grid size-7 place-items-center rounded-full bg-primary text-white">
-              <ClubIcon className="size-4 text-white" />
+            <div className="relative inline-flex size-7 items-center justify-center shrink-0">
+              <img src="/chatbot-icon.webp" alt="" className="absolute inset-0 size-full object-contain" />
+              <img src="/sparkle.png" alt="" className="relative size-4.5 object-contain" />
             </div>
             <p className="font-display text-sm font-semibold">AI Expert</p>
           </div>
@@ -410,7 +468,10 @@ function AiDrawer({ productSlug, productName, onClose }) {
               return (
                 <div
                   key={i}
-                  className="ml-auto max-w-[85%] rounded-2xl bg-primary text-primary-foreground px-4 py-2.5 text-sm"
+                  className="ml-auto max-w-[85%] rounded-2xl text-white px-4 py-2.5 text-sm"
+                  style={{
+                    background: "linear-gradient(135deg, #2854F5, #6C3BFF)",
+                  }}
                 >
                   {m.text}
                 </div>
@@ -418,16 +479,37 @@ function AiDrawer({ productSlug, productName, onClose }) {
             } else {
               return (
                 <div key={i} className="flex gap-3 max-w-[85%] items-start">
-                  <div className="grid size-8 place-items-center rounded-full bg-primary text-white shrink-0 shadow-sm mt-0.5">
-                    <ClubIcon className="size-4 text-white" />
+                  <div className="relative inline-flex size-8 items-center justify-center shrink-0 shadow-sm mt-0.5">
+                    <img src="/chatbot-icon.webp" alt="" className="absolute inset-0 size-full object-contain" />
+                    <img src="/sparkle.png" alt="" className="relative size-5 object-contain" />
                   </div>
                   <div className="rounded-2xl bg-surface border border-border/50 text-foreground px-4 py-2.5 text-sm leading-relaxed shadow-sm rounded-tl-none">
                     {m.text}
+                    {m.related?.length > 0 && (
+                      <div className="mt-2.5 pt-2.5 border-t border-border/50">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                          Related questions
+                        </p>
+                        <div className="flex flex-col items-start gap-1">
+                          {m.related.map((r) => (
+                            <button
+                              key={r.question}
+                              type="button"
+                              onClick={() => send(r.question)}
+                              className="text-left text-xs text-primary hover:underline"
+                            >
+                              {r.question}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
             }
           })}
+          <div ref={messagesEndRef} />
         </div>
 
         <div className="border-t border-border px-5 py-3">
@@ -436,7 +518,7 @@ function AiDrawer({ productSlug, productName, onClose }) {
               <button
                 key={s.question}
                 onClick={() => send(s.question)}
-                className="rounded-full border border-border bg-background px-3 py-1 text-[11px] text-muted-foreground hover:border-primary hover:text-primary"
+                className="rounded-full border border-border bg-background px-3 py-1 text-[11px] text-muted-foreground hover:border-[#6C3BFF] hover:text-[#6C3BFF] hover:bg-[#F3EFFF]"
               >
                 {s.question}
               </button>
@@ -453,12 +535,15 @@ function AiDrawer({ productSlug, productName, onClose }) {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={`Ask about ${productName}…`}
-              className="flex-1 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm outline-none placeholder:text-caption focus:border-primary focus:ring-2 focus:ring-primary/15"
+              className="flex-1 rounded-2xl border border-border bg-background px-4 py-2.5 text-sm outline-none placeholder:text-caption focus:border-[#2854F5] focus:ring-2 focus:ring-[#2854F5]/15"
               style={{ borderRadius: 16 }}
             />
             <button
               type="submit"
-              className="grid size-10 place-items-center rounded-full bg-primary text-primary-foreground hover:bg-primary-hover"
+              className="grid size-10 place-items-center rounded-full text-white hover:opacity-90 transition-opacity"
+              style={{
+                background: "linear-gradient(135deg, #2854F5, #6C3BFF)",
+              }}
               aria-label="Send"
             >
               <PaperPlaneTilt className="size-4" />

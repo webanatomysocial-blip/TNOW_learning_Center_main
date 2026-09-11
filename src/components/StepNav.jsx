@@ -1,10 +1,12 @@
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Play, RotateCcw } from "lucide-react";
+import { Sparkle } from "@phosphor-icons/react";
 import { getSteps, useExperience } from "@/lib/experience-store";
 import { useState, useEffect } from "react";
 
 export function StepNav({ current, nextLabel, className, alignEnd = false }) {
   const complete = useExperience((s) => s.complete);
+  const setAiOpen = useExperience((s) => s.setAiOpen);
   const { productSlug } = useParams();
   const steps = getSteps(productSlug);
   const idx = steps.findIndex((s) => s.id === current);
@@ -13,28 +15,44 @@ export function StepNav({ current, nextLabel, className, alignEnd = false }) {
 
   return (
     <div
-      className={`${
-        className || "mt-6 lg:mt-4.5 pt-4 lg:pt-3"
-      } flex items-center justify-between border-t border-border ${alignEnd ? "" : "pr-16 md:pr-44"}`}
+      className={`w-full shrink-0 h-20 lg:h-16 backdrop-blur-sm ${
+        className || "mt-auto"
+      } flex items-center justify-between border-t border-border ${alignEnd ? "" : "pr-4 lg:pr-6"}`}
     >
       {prev ? (
         <Link
           to={prev.path}
-          className="inline-flex items-center gap-1.5 text-sm lg:text-xs text-muted-foreground hover:text-foreground"
+          className="inline-flex items-center gap-1.5 text-sm lg:text-xs text-muted-foreground hover:text-foreground font-medium shrink-0"
         >
-          <ArrowLeft className="size-4 lg:size-3.5" /> {prev.label}
+          <ArrowLeft className="size-4 lg:size-3.5" />
+          <span className="hidden sm:inline">{prev.label}</span>
+          <span className="inline sm:hidden">Back</span>
         </Link>
       ) : (
         <span />
       )}
-      {next ? (
-        <Link to={next.path} className="btn-primary lg:py-2 lg:px-4 lg:text-xs">
-          {nextLabel ?? `Continue to ${next.label}`}
-          <ArrowRight className="size-4 lg:size-3.5" />
-        </Link>
-      ) : (
-        <span />
-      )}
+      <div className="flex items-center gap-2.5 lg:gap-3 shrink-0">
+        {next ? (
+          <Link to={next.path} className="btn-primary lg:py-2 lg:px-4 lg:text-xs shrink-0">
+            {nextLabel ?? (
+              <>
+                <span className="hidden sm:inline">Continue to {next.label}</span>
+                <span className="inline sm:hidden">Continue</span>
+              </>
+            )}
+            <ArrowRight className="size-4 lg:size-3.5" />
+          </Link>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => setAiOpen(true)}
+          aria-label="Open AI Expert"
+          className="relative inline-flex size-10 lg:size-9 items-center justify-center transition hover:scale-105 active:scale-95 shrink-0 cursor-pointer"
+        >
+          <img src="/chatbot-icon.webp" alt="" className="absolute inset-0 size-full object-contain" />
+          <img src="/sparkle.png" alt="" className="relative size-5.5 lg:size-5 object-contain" />
+        </button>
+      </div>
     </div>
   );
 }

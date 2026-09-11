@@ -1,10 +1,9 @@
 const path = require("node:path");
 const fs = require("node:fs");
 
-// dotenv defaults to loading ".env" from process.cwd(), which on a cPanel/Passenger
-// deployment is the Application Root (the project root, not this server/ folder) —
-// so the default would silently miss server/.env. Point it here explicitly.
+// Ensure .env is loaded whether running from project root (cPanel Passenger) or server/ dir
 require("dotenv").config({ path: path.join(__dirname, ".env") });
+require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 
 const express = require("express");
 const cors = require("cors");
@@ -16,6 +15,8 @@ const authRoutes = require("./routes/auth");
 const contentRoutes = require("./routes/content");
 const emailInvitesRoutes = require("./routes/email-invites");
 const cookieConsentRoutes = require("./routes/cookie-consent");
+const uploadsRoutes = require("./routes/uploads");
+const tidycalRoutes = require("./routes/tidycal");
 
 const app = express();
 
@@ -45,9 +46,17 @@ const apiLimiter = rateLimit({
   legacyHeaders: false,
 });
 app.use("/api/admin/login", authLimiter);
-app.use("/api/magic/:code/check-email", authLimiter);
 app.use("/api/magic/:code/consume", authLimiter);
 app.use("/api/", apiLimiter);
+
+// API responses reflect live database state (e.g. admin toggling a product's
+// status) — never let a browser, proxy, or the host's page-cache layer (LiteSpeed's
+// cache is common on shared hosting and can cache GET JSON responses by default)
+// serve a stale one.
+app.use("/api/", (req, res, next) => {
+  res.set("Cache-Control", "no-store");
+  next();
+});
 
 // CORS_ORIGIN may be a comma-separated list (e.g. multiple local dev ports).
 // In development, also allow any http://localhost:<port> / http://127.0.0.1:<port>
@@ -83,40 +92,46 @@ app.use(authRoutes);
 app.use(contentRoutes);
 app.use(emailInvitesRoutes);
 app.use(cookieConsentRoutes);
+app.use(uploadsRoutes);
+app.use(tidycalRoutes);
+// Uploaded images are public content meant to be <img>-embedded from the
+// frontend origin — helmet's default same-origin CORP header would otherwise
+// block that cross-origin load in local dev (API on :4000, Vite on :5173).
+app.use(
+  "/uploads",
+  (req, res, next) => {
+    res.set("Cross-Origin-Resource-Policy", "cross-origin");
+    next();
+  },
+  express.static(path.join(__dirname, "uploads")),
+);
 
 // On shared hosting (cPanel's Node.js App feature) there's typically one app per
-// domain — so this same process also serves the built React SPA (../dist) instead
-// of needing a second static host + CORS between them. Local dev doesn't build to
-// dist/, so this is a no-op there (Vite's own dev server handles the frontend).
-const distDir = path.join(__dirname, "..", "dist");
-
-// ===== TEMPORARY RUNTIME DEBUG — remove once /assets/* 404 is root-caused =====
-console.log("========== STARTUP DEBUG ==========");
-console.log("__dirname:", __dirname);
-console.log("process.cwd():", process.cwd());
-console.log("distDir:", distDir);
-console.log("dist exists:", fs.existsSync(distDir));
-console.log("assets exists:", fs.existsSync(path.join(distDir, "assets")));
-console.log("index exists:", fs.existsSync(path.join(distDir, "index.html")));
-console.log("==================================");
-
-app.use((req, res, next) => {
-  console.log("[REQUEST]", req.method, req.url);
-  next();
-});
-// ===== END TEMPORARY STARTUP DEBUG (request logger stays active below) =====
+// domain — so this same process also serves the built React SPA (../dist or ./dist) instead
+// of needing a second static host + CORS between them.
+const distDir = [
+  path.join(__dirname, "..", "dist"),
+  path.join(__dirname, "dist"),
+  path.join(process.cwd(), "dist"),
+].find((dir) => fs.existsSync(dir)) || path.join(__dirname, "..", "dist");
 
 if (fs.existsSync(distDir)) {
-  // Default fallthrough (true): express.static serves a real file when it finds
-  // one (JS/CSS/images under /assets) and silently calls next() for anything else
-  // — client-side routes like /admin/login aren't real files on disk, so they must
-  // fall through to the SPA catch-all below rather than 404 here.
   app.use(express.static(distDir));
+  app.use("/assets", express.static(path.join(distDir, "assets")));
 
   app.get(/^(?!\/api).*/, (req, res) => {
     res.sendFile(path.join(distDir, "index.html"));
   });
 }
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error("[EXPRESS ERROR]", req.method, req.url, err);
+  if (res.headersSent) {
+    return next(err);
+  }
+  res.status(err.status || 500).json({ error: err.message || "Internal Server Error" });
+});
 
 const PORT = Number(process.env.PORT) || 4000;
 
